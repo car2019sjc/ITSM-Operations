@@ -42,6 +42,7 @@ import environment from '../config/environment';
 import { normalizeRequestPriority, normalizeRequestStatus } from '../types/request';
 import { normalizeLocationName } from '../utils/locationUtils';
 import { RequestDetails } from './RequestDetails';
+import { CalendarSelector } from './CalendarSelector';
 
 interface RequestDashboardProps {
   onBack: () => void;
@@ -76,6 +77,11 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
   ), [requests]);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
 
+  // Novos estados independentes para o modal
+  const [modalStartDate, setModalStartDate] = useState(format(startOfYear(new Date()), 'yyyy-MM-dd'));
+  const [modalEndDate, setModalEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [showCalendar, setShowCalendar] = useState(false);
+
   // Extract unique categories from requests
   const categories = useMemo(() => {
     const uniqueCategories = new Set<string>();
@@ -86,6 +92,44 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
     });
     return Array.from(uniqueCategories).sort();
   }, [requests]);
+
+  // Função para filtrar requisições por período
+  const filteredRequests = useMemo(() => {
+    return requests.filter(request => {
+      const requestDate = parseISO(request.Opened);
+      const start = parseISO(startDate);
+      const end = parseISO(endDate);
+      return isWithinInterval(requestDate, { start, end });
+    });
+  }, [requests, startDate, endDate]);
+
+  // Função independente para filtrar requisições no modal
+  const modalFilteredRequests = useMemo(() => {
+    return requests.filter(request => {
+      const requestDate = parseISO(request.Opened);
+      const start = parseISO(modalStartDate);
+      const end = parseISO(modalEndDate);
+      return isWithinInterval(requestDate, { start, end });
+    });
+  }, [requests, modalStartDate, modalEndDate]);
+
+  // Função para atualizar as datas
+  const handleDateChange = (type: 'start' | 'end', value: string) => {
+    if (type === 'start') {
+      setStartDate(value);
+    } else {
+      setEndDate(value);
+    }
+  };
+
+  // Função independente para atualizar as datas do modal
+  const handleModalDateChange = (type: 'start' | 'end', value: string) => {
+    if (type === 'start') {
+      setModalStartDate(value);
+    } else {
+      setModalEndDate(value);
+    }
+  };
 
   const handleLogout = () => {
     // Call the onBack function to return to the main dashboard
@@ -126,8 +170,8 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
       r.Priority?.toLowerCase().includes('1')
     ).length;
     
-    // Calculate total as the sum of in progress, on hold, and completed
-    const total = inProgress + onHold + completed;
+    // Corrigido: total geral
+    const total = requests.length;
     
     return {
       total,
@@ -139,7 +183,7 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
   }, [requests]);
 
   return (
-    <div className="min-h-screen bg-[#0B1120] text-white">
+    <div className="min-h-screen bg-[#0F172A] text-white p-6">
       <DashboardHeader 
         title="Requests Dashboard"
         onLogout={handleLogout}
@@ -154,6 +198,24 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
             <ArrowLeft className="h-5 w-5" />
             <span>Voltar para Dashboard de Incidentes</span>
           </button>
+          <button
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+            onClick={() => setShowCalendar((prev) => !prev)}
+            type="button"
+          >
+            <Calendar className="h-5 w-5 text-white" />
+            <span>Selecionar Período</span>
+          </button>
+          {showCalendar && (
+            <CalendarSelector
+              startDate={modalStartDate}
+              endDate={modalEndDate}
+              onStartDateChange={setModalStartDate}
+              onEndDateChange={setModalEndDate}
+              onClose={() => setShowCalendar(false)}
+              position="bottom"
+            />
+          )}
         </div>
 
         <div className="space-y-8">
@@ -202,33 +264,51 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
             />
           </div>
 
-          {/* Monthly Location Summary */}
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-white">Sumarização Mensal por Localidade</h3>
-            <button
-              onClick={() => setShowMonthlyLocationSummary(!showMonthlyLocationSummary)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
-            >
-              <Calendar className="h-4 w-4" />
-              <span>{showMonthlyLocationSummary ? 'Ocultar Detalhes' : 'Ver Detalhes'}</span>
-            </button>
-          </div>
+          <div className="space-y-6">
+            {/* Filtro de Data Independente */}
+            <div className="bg-[#151B2B] p-4 rounded-lg relative">
+              <div className="flex items-center space-x-4">
+                <button
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+                  onClick={() => setShowCalendar((prev) => !prev)}
+                  type="button"
+                >
+                  <Calendar className="h-5 w-5 text-white" />
+                  <span>Selecionar Período</span>
+                </button>
+                {showCalendar && (
+                  <CalendarSelector
+                    startDate={modalStartDate}
+                    endDate={modalEndDate}
+                    onStartDateChange={setModalStartDate}
+                    onEndDateChange={setModalEndDate}
+                    onClose={() => setShowCalendar(false)}
+                    position="bottom"
+                  />
+                )}
+              </div>
+            </div>
 
-          {showMonthlyLocationSummary ? (
-            <RequestMonthlyLocationSummary
-              requests={requests}
-              onClose={() => setShowMonthlyLocationSummary(false)}
-              startDate={startDate}
-              endDate={endDate}
-            />
-          ) : (
-            <RequestTopLocationCards 
-              requests={requests} 
-              onLocationClick={handleLocationClick}
-              startDate={startDate}
-              endDate={endDate}
-            />
-          )}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-white">Sumarização Mensal por Localidade</h3>
+              <button
+                onClick={() => setShowMonthlyLocationSummary(!showMonthlyLocationSummary)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+              >
+                <Calendar className="h-4 w-4" />
+                <span>{showMonthlyLocationSummary ? 'Ocultar Detalhes' : 'Ver Detalhes'}</span>
+              </button>
+            </div>
+
+            {showMonthlyLocationSummary && (
+              <RequestMonthlyLocationSummary
+                requests={modalFilteredRequests}
+                onClose={() => setShowMonthlyLocationSummary(false)}
+                startDate={modalStartDate}
+                endDate={modalEndDate}
+              />
+            )}
+          </div>
 
           <SearchBar 
             value={searchQuery}
@@ -326,90 +406,79 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
           </div>
 
           {showDashboardMetrics && (
-            <div className="bg-[#151B2B] p-6 rounded-lg space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white">Métricas do Dashboard</h2>
-                <button
-                  onClick={() => setShowDashboardMetrics(false)}
-                  className="p-2 hover:bg-[#1C2333] rounded-lg transition-colors"
-                >
-                  <X className="h-5 w-5 text-gray-400 hover:text-white" />
-                </button>
-              </div>
-              <RequestDashboardMetrics
-                requests={requests}
-                startDate={startDate}
-                endDate={endDate}
-              />
-            </div>
+            <RequestDashboardMetrics
+              requests={modalFilteredRequests}
+              startDate={modalStartDate}
+              endDate={modalEndDate}
+            />
           )}
 
           {showRequestAnalysis && (
             <RequestAnalysis
-              requests={requests}
+              requests={modalFilteredRequests}
               onClose={() => setShowRequestAnalysis(false)}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={modalStartDate}
+              endDate={modalEndDate}
             />
           )}
 
           {showCategoryAnalysis && (
             <RequestCategoryAnalysis
-              requests={requests}
+              requests={modalFilteredRequests}
               onClose={() => setShowCategoryAnalysis(false)}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={modalStartDate}
+              endDate={modalEndDate}
             />
           )}
 
           {showPriorityAnalysis && (
             <RequestPriorityAnalysis
-              requests={requests}
+              requests={modalFilteredRequests}
               onClose={() => setShowPriorityAnalysis(false)}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={modalStartDate}
+              endDate={modalEndDate}
             />
           )}
 
           {showHistoryAnalysis && (
             <RequestHistoryAnalysis
-              requests={requests}
+              requests={modalFilteredRequests}
               onClose={() => setShowHistoryAnalysis(false)}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={modalStartDate}
+              endDate={modalEndDate}
             />
           )}
 
           {showSLAAnalysis && (
             <RequestSLAAnalysis
-              requests={requests}
+              requests={modalFilteredRequests}
               onClose={() => setShowSLAAnalysis(false)}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={modalStartDate}
+              endDate={modalEndDate}
             />
           )}
 
           {showPerformanceMetrics && (
             <RequestPerformanceMetrics
-              requests={requests}
+              requests={modalFilteredRequests}
               onClose={() => setShowPerformanceMetrics(false)}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={modalStartDate}
+              endDate={modalEndDate}
             />
           )}
 
           {showTrendAnalysis && (
             <RequestTrendAnalysis
-              requests={requests}
+              requests={modalFilteredRequests}
               onClose={() => setShowTrendAnalysis(false)}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={modalStartDate}
+              endDate={modalEndDate}
             />
           )}
 
           {showAIPredictiveAnalysis && (
             <AIPredictiveAnalysis
-              requests={requests}
+              requests={modalFilteredRequests}
               onClose={() => setShowAIPredictiveAnalysis(false)}
             />
           )}
@@ -426,9 +495,9 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
                 </button>
               </div>
               <RequestUserAnalysis
-                requests={requests}
-                startDate={startDate}
-                endDate={endDate}
+                requests={modalFilteredRequests}
+                startDate={modalStartDate}
+                endDate={modalEndDate}
               />
             </div>
           )}
@@ -445,9 +514,9 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
                 </button>
               </div>
               <RequestLocationAnalysis
-                requests={requests}
-                startDate={startDate}
-                endDate={endDate}
+                requests={modalFilteredRequests}
+                startDate={modalStartDate}
+                endDate={modalEndDate}
               />
             </div>
           )}

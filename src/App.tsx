@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { DashboardHeader } from './components/DashboardHeader';
 import { SearchBar } from './components/SearchBar';
@@ -73,6 +73,35 @@ import { DashboardSections } from './components/DashboardSections';
 import { TopIncidentsByStringAssociado } from './components/TopIncidentsByStringAssociado';
 import { MonthlyVariation } from './components/MonthlyVariation';
 import { MonthlyLocationVariation } from './components/MonthlyLocationVariation';
+import { CalendarSelector } from './components/CalendarSelector';
+
+/**
+ * ===================== CALENDÁRIO GLOBAL DO DASHBOARD =====================
+ *
+ * Função: Permite ao usuário selecionar o período global de análise do dashboard de incidentes.
+ *
+ * Localização: Painel principal, acima dos Indicadores Operacionais.
+ *
+ * Componentes envolvidos:
+ *   - Botão "Selecionar Período": abre o calendário.
+ *   - CalendarSelector: componente reutilizável para seleção de datas.
+ *   - Modal centralizado com fundo escurecido.
+ *
+ * Funcionamento:
+ *   - O botão "Selecionar Período" exibe o calendário em um modal.
+ *   - O usuário pode escolher a data inicial e final do período de análise.
+ *   - As datas selecionadas atualizam os estados globais startDate e endDate do dashboard.
+ *   - O período selecionado afeta todos os cards, gráficos e análises do painel principal.
+ *
+ * Como alterar:
+ *   - Para mudar o visual, edite o botão ou o modal do calendário.
+ *   - Para trocar o calendário, altere o componente <CalendarSelector />.
+ *   - Para modificar o comportamento, ajuste os handlers de estado (showMainCalendar, setStartDate, setEndDate).
+ *
+ * Observação:
+ *   - Qualquer ajuste futuro de UX ou lógica de período global deve ser feito neste bloco e nos handlers citados.
+ * ===========================================================================
+ */
 
 const SLA_THRESHOLDS = {
   P1: 1,   // 1 hour
@@ -93,9 +122,7 @@ function App() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState(() => {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), 0, 1);
-    return firstDay.toISOString().slice(0, 10);
+    return '2025-01-01';
   });
   const [endDate, setEndDate] = useState(() => {
     const now = new Date();
@@ -141,6 +168,9 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return localStorage.getItem(AUTH_KEY) === 'true';
   });
+  const [showMainCalendar, setShowMainCalendar] = useState(false);
+  const calendarButtonRef = useRef<HTMLButtonElement>(null);
+  const calendarPopoverRef = useRef<HTMLDivElement>(null);
 
   // Log de autenticação
   React.useEffect(() => {
@@ -162,6 +192,23 @@ function App() {
       console.error('[APP][UNHANDLED PROMISE REJECTION]', event.reason);
     };
   }, []);
+
+  // Fecha o popover ao clicar fora
+  useEffect(() => {
+    if (!showMainCalendar) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        calendarPopoverRef.current &&
+        !calendarPopoverRef.current.contains(event.target as Node) &&
+        calendarButtonRef.current &&
+        !calendarButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowMainCalendar(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMainCalendar]);
 
   const categories = useMemo(() => {
     const uniqueCategories = new Set(incidents.map(i => {
@@ -486,104 +533,70 @@ function App() {
 
     // Função para converter datas brasileiras para ISO
     function parseDateBR(dateStr: string) {
-      if (!dateStr) return '';
-      
+      if (!dateStr) return null;
       try {
-        // Remove possíveis caracteres extras
         dateStr = dateStr.trim().replace(/['"]/g, '');
-        
-        // Log para debug
-        console.log(`Tentando parsear data: ${dateStr}`);
-        
-        // Tenta diferentes formatos de data
-        const formats = [
-          // Formato ISO direto
-          () => {
-            const iso = Date.parse(dateStr);
-            if (!isNaN(iso)) {
-              const date = new Date(iso);
-              console.log(`Data parseada como ISO: ${date.toISOString()}`);
-              return date.toISOString();
-            }
-            return null;
-          },
           // Formato brasileiro dd/MM/yyyy HH:mm:ss
-          () => {
-            const match = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2}):(\d{2})/);
+        let match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2}):(\d{2})$/);
             if (match) {
               const [_, dia, mes, ano, hora, min, seg] = match;
-              // Validação adicional do mês
-              if (parseInt(mes) < 1 || parseInt(mes) > 12) {
-                console.warn(`Mês inválido encontrado: ${mes}`);
-                return null;
-              }
+          if (parseInt(mes) >= 1 && parseInt(mes) <= 12) {
               const dt = new Date(`${ano}-${mes}-${dia}T${hora}:${min}:${seg}`);
-              if (!isNaN(dt.getTime())) {
-                console.log(`Data parseada como dd/MM/yyyy HH:mm:ss: ${dt.toISOString()}`);
-                return dt.toISOString();
-              }
+            if (!isNaN(dt.getTime())) return dt.toISOString();
             }
             return null;
-          },
+        }
           // Formato brasileiro dd/MM/yyyy HH:mm
-          () => {
-            const match = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2})/);
+        match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2})$/);
             if (match) {
               const [_, dia, mes, ano, hora, min] = match;
-              // Validação adicional do mês
-              if (parseInt(mes) < 1 || parseInt(mes) > 12) {
-                console.warn(`Mês inválido encontrado: ${mes}`);
-                return null;
-              }
+          if (parseInt(mes) >= 1 && parseInt(mes) <= 12) {
               const dt = new Date(`${ano}-${mes}-${dia}T${hora}:${min}:00`);
-              if (!isNaN(dt.getTime())) {
-                console.log(`Data parseada como dd/MM/yyyy HH:mm: ${dt.toISOString()}`);
-                return dt.toISOString();
-              }
+            if (!isNaN(dt.getTime())) return dt.toISOString();
             }
             return null;
-          },
+        }
           // Formato brasileiro dd/MM/yyyy
-          () => {
-            const match = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
             if (match) {
               const [_, dia, mes, ano] = match;
-              // Validação adicional do mês
-              if (parseInt(mes) < 1 || parseInt(mes) > 12) {
-                console.warn(`Mês inválido encontrado: ${mes}`);
-                return null;
-              }
+          if (parseInt(mes) >= 1 && parseInt(mes) <= 12) {
               const dt = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-              if (!isNaN(dt.getTime())) {
-                console.log(`Data parseada como dd/MM/yyyy: ${dt.toISOString()}`);
-                return dt.toISOString();
+            if (!isNaN(dt.getTime())) return dt.toISOString();
               }
+          return null;
             }
+        // Formato ISO yyyy-MM-ddTHH:mm:ss ou yyyy-MM-dd
+        match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})([ T](\d{2}):(\d{2})(:(\d{2}))?)?/);
+        if (match) {
+          const dt = new Date(dateStr);
+          if (!isNaN(dt.getTime())) return dt.toISOString();
             return null;
           }
-        ];
-
-        // Tenta cada formato até encontrar um válido
-        for (const format of formats) {
-          const result = format();
-          if (result) return result;
+        // Formato numérico do Excel
+        const num = parseFloat(dateStr);
+        if (!isNaN(num)) {
+          const baseDate = new Date(1900, 0, 1);
+          const days = Math.floor(num);
+          const milliseconds = (num - days) * 24 * 60 * 60 * 1000;
+          const date = new Date(baseDate.getTime() + (days - 1) * 24 * 60 * 60 * 1000 + milliseconds);
+          if (!isNaN(date.getTime())) return date.toISOString();
         }
-
-        console.warn(`Não foi possível parsear a data: ${dateStr}`);
         return null;
-      } catch (error) {
-        console.error(`Erro ao parsear data ${dateStr}:`, error);
+      } catch (e) {
         return null;
       }
     }
 
-    // Garantir que todos os campos Opened estejam em formato ISO válido
+    // Garantir que todos os campos Opened e Updated estejam em formato ISO válido
     const processedDataISO = processedData
       .map(incident => {
         let opened = incident.Opened;
-        let isoDate = parseDateBR(opened);
+        let updated = incident.Updated;
+        let openedISO = parseDateBR(opened);
+        let updatedISO = parseDateBR(updated);
         
-        if (!isoDate) {
+        if (!openedISO) {
           console.warn(`Campo Opened inválido para incidente ${incident.Number}: ${opened}`);
           // Tenta extrair a data do número do incidente
           const incidentNumber = incident.Number;
@@ -594,52 +607,89 @@ function App() {
               if (parseInt(mes) >= 1 && parseInt(mes) <= 12) {
                 const dt = new Date(`${ano}-${mes}-${dia}T00:00:00`);
                 if (!isNaN(dt.getTime())) {
-                  isoDate = dt.toISOString();
-                  console.log(`Data extraída do número do incidente ${incident.Number}: ${isoDate}`);
+                  openedISO = dt.toISOString();
+                  console.log(`Data extraída do número do incidente ${incident.Number}: ${openedISO}`);
                 }
               } else {
                 console.warn(`Mês inválido extraído do número do incidente ${incident.Number}: ${mes}`);
               }
             }
           }
-          // Se ainda não conseguiu extrair a data, retorna null para ser filtrado depois
-          if (!isoDate) {
-            console.warn(`Não foi possível determinar a data para o incidente ${incident.Number}`);
-            return null;
-          }
         }
-        return { ...incident, Opened: isoDate };
-      })
-      .filter(incident => incident !== null);
 
-    // Filtra incidentes com datas válidas e dentro do intervalo permitido (01/2025 a 06/2025)
-    const validIncidents = processedDataISO.filter(incident => {
-      if (typeof incident.Opened !== 'string' || !incident.Opened) return false;
-      const date = new Date(incident.Opened);
-      const ano = date.getFullYear();
-      const mes = date.getMonth() + 1; // getMonth() retorna 0-11
-      // Aceita apenas de janeiro a junho de 2025
-      const valido = ano === 2025 && mes >= 1 && mes <= 6;
-      if (!valido) {
-        console.warn(`Incidente ${incident.Number} com data fora do intervalo permitido: ${incident.Opened}`);
-      }
-      return valido;
-    });
-    const invalidIncidents = processedDataISO.filter(incident => incident.Opened === null);
+        if (!updatedISO && incident.Updated) {
+          console.warn(`Campo Updated inválido para incidente ${incident.Number}: ${updated}`);
+          // Se não conseguiu converter o Updated, usa o Opened como fallback
+          updatedISO = openedISO;
+        }
 
-    if (invalidIncidents.length > 0) {
-      console.warn(`Encontrados ${invalidIncidents.length} incidentes com datas inválidas`);
-      invalidIncidents.forEach(incident => {
-        console.warn(`Incidente ${incident.Number} tem data inválida: ${incident.Opened}`);
+        // Se ainda não conseguiu extrair a data, tenta usar a data atual como último recurso
+        if (!openedISO) {
+          console.warn(`Não foi possível determinar a data para o incidente ${incident.Number}, usando data atual como fallback`);
+          openedISO = new Date().toISOString();
+        }
+
+        // Validação adicional das datas
+        const openedDate = new Date(openedISO);
+        const updatedDate = new Date(updatedISO || openedISO);
+
+        if (isNaN(openedDate.getTime())) {
+          console.warn(`Data Opened inválida após conversão para ISO: ${openedISO}, usando data atual como fallback`);
+          openedISO = new Date().toISOString();
+        }
+
+        if (isNaN(updatedDate.getTime())) {
+          console.warn(`Data Updated inválida após conversão para ISO: ${updatedISO}, usando Opened como fallback`);
+          updatedISO = openedISO;
+        }
+
+        // Verifica se Updated é anterior a Opened
+        if (updatedDate < openedDate) {
+          console.warn(`Data Updated (${updatedISO}) é anterior a Opened (${openedISO}) para o incidente ${incident.Number}, usando Opened como fallback`);
+          updatedISO = openedISO;
+        }
+
+        return { 
+          ...incident, 
+          Opened: openedISO,
+          Updated: updatedISO || openedISO // Se Updated for inválido, usa Opened como fallback
+        };
       });
-    }
 
-    console.log(`Processados ${validIncidents.length} incidentes com datas válidas`);
-    setIncidents(validIncidents);
+    console.log("Total de incidentes após processamento de datas:", processedDataISO.length);
+    console.log("=== FIM DO PROCESSAMENTO DE DATAS ===");
+
+    // Aplicar filtros iniciais
+    const filteredData = processedDataISO.filter(incident => {
+      const openedDate = new Date(incident.Opened);
+      const startDate = new Date('2020-01-01');
+      const endDate = new Date('2025-12-31');
+      
+      return openedDate >= startDate && openedDate <= endDate;
+      });
+
+    console.log("Total de incidentes após filtros iniciais:", filteredData.length);
+    console.log("=== FIM DOS FILTROS INICIAIS ===");
+
+    setIncidents(filteredData);
     
+    // If we already have requests data, hide the file selector
     if (requests.length > 0) {
       setShowFileSelector(false);
     }
+
+    // LOG DETALHADO: incidentes com data acima de 2025-06-30
+    filteredData.forEach(i => {
+      const d = new Date(i.Opened || '');
+      if (!isNaN(d.getTime()) && d > new Date('2025-06-30T23:59:59')) {
+        console.warn('[DEBUG INCIDENTE FUTURO]', {
+          Number: i.Number,
+          OpenedOriginal: i.Opened,
+          UpdatedOriginal: i.Updated,
+          State: i.State
+        });
+      }
+    });
   };
 
   const handleRequestsLoaded = (data: Request[]) => {
@@ -841,6 +891,33 @@ function App() {
               onStatusChange={setSelectedStatus}
             />
 
+            <div className="flex justify-end mb-4 relative">
+              <button
+                ref={calendarButtonRef}
+                onClick={() => setShowMainCalendar((v) => !v)}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shadow"
+              >
+                <Calendar className="h-5 w-5" />
+                <span>Selecionar Período</span>
+              </button>
+              {showMainCalendar && (
+                <div
+                  ref={calendarPopoverRef}
+                  className="absolute right-0 mt-2 z-50 bg-[#1C2333] rounded-lg shadow-xl border border-gray-700"
+                  style={{ minWidth: 340 }}
+                >
+                  <CalendarSelector
+                    startDate={startDate}
+                    endDate={endDate}
+                    onStartDateChange={setStartDate}
+                    onEndDateChange={setEndDate}
+                    onClose={() => setShowMainCalendar(false)}
+                    position="bottom"
+                  />
+                </div>
+              )}
+            </div>
+
             <DashboardSections
               onSectionClick={handleSectionClick}
               activeSection={activeSection}
@@ -989,7 +1066,7 @@ function App() {
               <MonthlyVariation
                 incidents={filteredIncidents}
                 requests={requests}
-                startDate={startDate}
+                startDate={'2025-01-01'}
                 endDate={endDate}
                 onClose={() => setActiveSection('')}
               />
@@ -999,20 +1076,68 @@ function App() {
               <MonthlyLocationVariation
                 incidents={filteredIncidents}
                 requests={requests}
-                startDate={startDate}
+                startDate={'2025-01-01'}
                 endDate={endDate}
                 onClose={() => setActiveSection('')}
               />
             )}
 
             {activeSection === 'comparative-volumetry' && (
+              (() => {
+                // Encontrar a maior data de Opened entre incidentes e requisições
+                const allDates = [
+                  ...filteredIncidents.map(i => i.Opened),
+                  ...requests.map(r => r.Opened)
+                ].map(dateStr => {
+                  if (!dateStr) return null;
+                  const d = new Date(dateStr);
+                  return !dateStr || isNaN(d.getTime()) ? null : d;
+                }).filter((d): d is Date => d !== null);
+                let lastDate = allDates.length > 0 ? new Date(Math.max(...allDates.map(d => d.getTime()))) : new Date();
+                // Ajustar para o último dia do mês
+                lastDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0);
+                const endDateDynamic = lastDate.toISOString().slice(0, 10);
+
+                // FILTRO EXTRA: garantir que só incidentes até 2025-06-30 sejam considerados
+                const maxAllowedDate = new Date('2025-06-30T23:59:59');
+                const filteredIncidentsMax = filteredIncidents.filter(i => {
+                  const d = new Date(i.Opened);
+                  const dateToCheck = d && !isNaN(d.getTime()) ? d : new Date(0);
+                  return dateToCheck <= maxAllowedDate;
+                });
+                // Logar incidentes problemáticos
+                const incidentsInvalid = filteredIncidents.filter(i => {
+                  const d = new Date(i.Opened);
+                  const dateToCheck = d && !isNaN(d.getTime()) ? d : new Date(0);
+                  return dateToCheck > maxAllowedDate;
+                });
+                if (incidentsInvalid.length > 0) {
+                  console.warn('Incidentes com data acima de 2025-06-30:', incidentsInvalid.map(i => ({ Number: i.Number, Opened: i.Opened })));
+                }
+
+                // LOG DETALHADO: incidentes com data acima de 2025-06-30
+                filteredIncidentsMax.forEach(i => {
+                  const d = new Date(i.Opened || '');
+                  if (!isNaN(d.getTime()) && d > maxAllowedDate) {
+                    console.warn('[DEBUG INCIDENTE FUTURO]', {
+                      Number: i.Number,
+                      OpenedOriginal: i.Opened,
+                      UpdatedOriginal: i.Updated,
+                      State: i.State
+                    });
+                  }
+                });
+
+                return (
               <ComparativeVolumetry
-                incidents={filteredIncidents}
+                    incidents={filteredIncidentsMax}
                 requests={requests}
-                startDate={startDate}
-                endDate={endDate}
+                    startDate={'2025-01-01'}
+                    endDate={endDateDynamic}
                 onClose={() => setActiveSection('')}
               />
+                );
+              })()
             )}
 
             {activeSection === 'location-distribution' && (

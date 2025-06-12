@@ -49,7 +49,9 @@ export function LocationDetailChart({ location, incidents, requests, startDate, 
         }
       }).length;
       return { month: monthLabel, incidentsTotal, requestsTotal };
-    });
+    })
+    // Filtrar meses sem dados
+    .filter(m => m.incidentsTotal > 0 || m.requestsTotal > 0);
   }, [incidents, requests, startDate, endDate, location]);
 
   return (

@@ -4,6 +4,29 @@ import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-f
 import { ptBR } from 'date-fns/locale';
 import { StringAnalysisModal } from './StringAnalysisModal';
 
+// Função para parsear datas em diferentes formatos
+const parseDateFlexible = (dateStr: string) => {
+  if (!dateStr) return undefined;
+  // Tenta ISO
+  let d = parseISO(dateStr);
+  if (!isNaN(d.getTime())) return d;
+  // Tenta formato brasileiro dd/MM/yyyy HH:mm:ss
+  const match = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if (match) {
+    const [_, dia, mes, ano, hora, min, seg] = match;
+    d = new Date(`${ano}-${mes}-${dia}T${hora}:${min}:${seg}`);
+    if (!isNaN(d.getTime())) return d;
+  }
+  // Tenta formato brasileiro dd/MM/yyyy HH:mm
+  const match2 = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2})/);
+  if (match2) {
+    const [_, dia, mes, ano, hora, min] = match2;
+    d = new Date(`${ano}-${mes}-${dia}T${hora}:${min}`);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return undefined;
+};
+
 interface AssociatedIndicatorsAnalysisProps {
   data: any[];
   dateRange: { start: Date; end: Date };
@@ -107,7 +130,11 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
 
   const processedData = useMemo(() => {
     const filteredData = data.filter(item => {
-      const openedDate = parseISO(item.Opened);
+      const openedDate = parseDateFlexible(item.Opened);
+      if (!openedDate) {
+        console.warn(`Data inválida para o incidente: ${item.Number}, Opened: ${item.Opened}`);
+        return false;
+      }
       return isWithinInterval(openedDate, {
         start: startOfDay(dateRange.start),
         end: endOfDay(dateRange.end)
@@ -116,7 +143,10 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
 
     // Processamento por turno
     const shiftData = filteredData.reduce((acc, item) => {
-      const hour = parseISO(item.Opened).getHours();
+      const openedDate = parseDateFlexible(item.Opened);
+      if (!openedDate) return acc;
+      
+      const hour = openedDate.getHours();
       let shift = 'night';
       
       if (hour >= SHIFT_TIMES.morning.start && hour < SHIFT_TIMES.morning.end) {
@@ -197,14 +227,14 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
   const shiftDataByFunction = useMemo(() => {
     if (!selectedFunction) return [];
     const filtered = filteredByFunction.filter(item => {
-      const openedDate = parseISO(item.Opened);
+      const openedDate = parseDateFlexible(item.Opened);
       return isWithinInterval(openedDate, {
         start: startOfDay(dateRange.start),
         end: endOfDay(dateRange.end)
       });
     });
     return filtered.reduce((acc, item) => {
-      const hour = parseISO(item.Opened).getHours();
+      const hour = parseDateFlexible(item.Opened)?.getHours() || 0;
       let shift = 'night';
       if (hour >= SHIFT_TIMES.morning.start && hour < SHIFT_TIMES.morning.end) {
         shift = 'morning';
@@ -246,13 +276,8 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
     const groupSet = new Set<string>();
     const functionSet = new Set<string>();
     const filteredData = data.filter(item => {
-      const openedDate = parseISO(item.Opened);
-      return isWithinInterval(openedDate, {
-        start: startOfDay(dateRange.start),
-        end: endOfDay(dateRange.end)
-      });
-    });
-    filteredData.forEach(item => {
+      const openedDate = parseDateFlexible(item.Opened);
+      if (!openedDate) return false;
       const group = getField(item, [
         'AssignmentGroup', 'Assignment Group', 'Grupo de Atribuição', 'Grupo', 'Group', 'GrupoAtribuicao', 'Grupo_Associado', 'Equipe', 'Team'
       ]);
@@ -264,6 +289,7 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
       if (!matrix[group]) matrix[group] = {};
       if (!matrix[group][func]) matrix[group][func] = 0;
       matrix[group][func]++;
+      return true;
     });
     // Montar array para o gráfico
     const groupArray = Array.from(groupSet);

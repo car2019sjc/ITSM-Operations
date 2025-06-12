@@ -46,6 +46,10 @@ interface MonthComparison {
 export function MonthlyVariation({ incidents, requests, startDate, endDate, onClose }: MonthlyVariationProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Define o período padrão como 01/01/2025 em diante
+  const defaultStartDate = '2025-01-01';
+  const defaultEndDate = endDate || new Date().toISOString().slice(0, 10);
+
   // Calculate monthly data
   const monthlyData = useMemo(() => {
     if (!startDate || !endDate) return [];
@@ -158,6 +162,11 @@ export function MonthlyVariation({ incidents, requests, startDate, endDate, onCl
     return comparisons;
   }, [monthlyData]);
 
+  // Exibir apenas comparações com dados reais
+  const monthComparisonsFiltered = monthComparisons.filter(cmp =>
+    cmp.incidentsChangeAbsolute !== 0 || cmp.requestsChangeAbsolute !== 0
+  );
+
   return (
     <div className="bg-[#151B2B] p-6 rounded-lg space-y-6 relative">
       <button
@@ -167,12 +176,12 @@ export function MonthlyVariation({ incidents, requests, startDate, endDate, onCl
       >
         ×
       </button>
-      {monthComparisons.length === 0 ? (
+      {monthComparisonsFiltered.length === 0 ? (
         <div className="text-center py-4 text-gray-400">
           Não há dados suficientes para comparação mensal.
         </div>
       ) : (
-        monthComparisons.map((comparison, index) => (
+        monthComparisonsFiltered.map((comparison, index) => (
           <div key={index} className="bg-[#0F172A] rounded-lg p-4">
             <h3 className="text-lg font-medium text-white mb-4">
               {comparison.currentMonth} em relação a {comparison.previousMonth}
@@ -218,8 +227,8 @@ export function MonthlyVariation({ incidents, requests, startDate, endDate, onCl
                 </div>
                 <p className="text-sm text-gray-400">
                   {comparison.requestsChangeAbsolute > 0 
-                    ? `Aumento de ${comparison.requestsChangeAbsolute} solicitações`
-                    : `Redução de ${Math.abs(comparison.requestsChangeAbsolute)} solicitações`}
+                    ? `Aumento de ${comparison.requestsChangeAbsolute} chamados`
+                    : `Redução de ${Math.abs(comparison.requestsChangeAbsolute)} chamados`}
                 </p>
               </div>
               
@@ -234,14 +243,14 @@ export function MonthlyVariation({ incidents, requests, startDate, endDate, onCl
                       <TrendingDown className="h-4 w-4 text-red-400" />
                     )}
                     <span className={comparison.slaChange > 0 ? 'text-green-400' : 'text-red-400'}>
-                      {comparison.slaChange > 0 ? '+' : ''}{comparison.slaChange.toFixed(1)}pp
+                      {comparison.slaChange > 0 ? '+' : ''}{comparison.slaChange.toFixed(1)}%
                     </span>
                   </div>
                 </div>
                 <p className="text-sm text-gray-400">
                   {comparison.slaChange > 0 
-                    ? 'Melhoria no SLA'
-                    : 'Piora no SLA'}
+                    ? `Aumento de ${comparison.slaChange.toFixed(1)}% no SLA`
+                    : `Redução de ${Math.abs(comparison.slaChange).toFixed(1)}% no SLA`}
                 </p>
               </div>
             </div>

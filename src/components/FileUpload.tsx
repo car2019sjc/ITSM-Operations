@@ -124,23 +124,66 @@ export function FileUpload({ onDataLoaded }: FileUploadProps) {
         reason: 'Data de abertura é obrigatória'
       });
     } else {
-      try {
+      // Tenta diferentes formatos de data
+      const formats = [
+        // Formato ISO
+        () => {
         const date = new Date(item.Opened);
-        if (isNaN(date.getTime())) {
-          errors.push({
-            row: rowIndex,
-            column: 'Opened',
-            value: item.Opened,
-            reason: 'Data de abertura inválida'
-          });
+          return !isNaN(date.getTime()) ? date.toISOString() : null;
+        },
+        // Formato brasileiro dd/MM/yyyy HH:mm:ss
+        () => {
+          const match = item.Opened.match(/(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2}):(\d{2})/);
+          if (match) {
+            const [_, dia, mes, ano, hora, min, seg] = match;
+            if (parseInt(mes) >= 1 && parseInt(mes) <= 12) {
+              const dt = new Date(`${ano}-${mes}-${dia}T${hora}:${min}:${seg}`);
+              return !isNaN(dt.getTime()) ? dt.toISOString() : null;
+            }
+          }
+          return null;
+        },
+        // Formato brasileiro dd/MM/yyyy HH:mm
+        () => {
+          const match = item.Opened.match(/(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2})/);
+          if (match) {
+            const [_, dia, mes, ano, hora, min] = match;
+            if (parseInt(mes) >= 1 && parseInt(mes) <= 12) {
+              const dt = new Date(`${ano}-${mes}-${dia}T${hora}:${min}:00`);
+              return !isNaN(dt.getTime()) ? dt.toISOString() : null;
+            }
+          }
+          return null;
+        },
+        // Formato brasileiro dd/MM/yyyy
+        () => {
+          const match = item.Opened.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+          if (match) {
+            const [_, dia, mes, ano] = match;
+            if (parseInt(mes) >= 1 && parseInt(mes) <= 12) {
+              const dt = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+              return !isNaN(dt.getTime()) ? dt.toISOString() : null;
+            }
+          }
+          return null;
         }
-      } catch (e) {
+      ];
+
+      let validDate = null;
+      for (const format of formats) {
+        validDate = format();
+        if (validDate) break;
+        }
+
+      if (!validDate) {
         errors.push({
           row: rowIndex,
           column: 'Opened',
           value: item.Opened,
-          reason: 'Data de abertura inválida'
+          reason: 'Data de abertura inválida (use formato dd/MM/yyyy HH:mm:ss ou ISO)'
         });
+      } else {
+        item.Opened = validDate;
       }
     }
 

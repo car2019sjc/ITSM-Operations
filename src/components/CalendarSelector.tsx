@@ -171,9 +171,18 @@ export function CalendarSelector({
           <div key={`padding-${index}`} className="p-2" />
         ))}
         {daysInMonth.map(day => {
-          const isSelected = isSameDay(day, parseISO(selectingStart ? startDate : endDate));
-          const inRange = isInRange(day);
+          const isValidDate = (d: unknown): d is string => typeof d === 'string' && d.length >= 8;
+          const isStart = isValidDate(startDate) ? isSameDay(day, parseISO(startDate)) : false;
+          const isEnd = isValidDate(endDate) ? isSameDay(day, parseISO(endDate)) : false;
+          const isSelected = isStart || isEnd;
+          const inRange = isValidDate(startDate) && isValidDate(endDate) ? isInRange(day) : false;
           const isCurrentMonth = isSameMonth(day, currentMonth);
+          
+          let customBg = '';
+          if (isStart) customBg = 'bg-green-600 hover:bg-green-700';
+          else if (isEnd) customBg = 'bg-orange-500 hover:bg-orange-600';
+          else if (inRange) customBg = 'bg-indigo-600/20 hover:bg-indigo-600/30';
+          else customBg = 'hover:bg-gray-700';
           
           return (
             <button
@@ -184,15 +193,15 @@ export function CalendarSelector({
               className={`
                 p-2 text-sm rounded-lg transition-colors relative
                 ${!isCurrentMonth ? 'text-gray-600' : 'text-white'}
-                ${isSelected ? 'bg-indigo-600 hover:bg-indigo-700 z-10' : ''}
-                ${!isSelected && inRange ? 'bg-indigo-600/20 hover:bg-indigo-600/30' : ''}
-                ${!isSelected && !inRange ? 'hover:bg-gray-700' : ''}
+                ${customBg}
+                ${isSelected ? 'z-10' : ''}
               `}
               disabled={!isCurrentMonth}
             >
               {format(day, 'd')}
               {isSelected && (
-                <span className="absolute inset-0 animate-ping bg-indigo-600 rounded-lg opacity-75" style={{animationDuration: '1s', animationIterationCount: '1'}}></span>
+                <span className={`absolute inset-0 animate-ping rounded-lg opacity-75 ${isStart ? 'bg-green-600' : isEnd ? 'bg-orange-500' : ''}`}
+                  style={{animationDuration: '1s', animationIterationCount: '1'}}></span>
               )}
             </button>
           );
