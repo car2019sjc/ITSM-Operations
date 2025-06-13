@@ -497,7 +497,7 @@ function App() {
     console.log("Total de incidentes recebidos:", data.length);
     
     setSearchQuery('');
-    setStartDate('2020-01-01');
+    setStartDate('2025-01-01');
     setEndDate('2025-12-31');
     setSelectedCategory('');
     setSelectedStatus('');
