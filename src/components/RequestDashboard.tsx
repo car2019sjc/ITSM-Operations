@@ -198,24 +198,6 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
             <ArrowLeft className="h-5 w-5" />
             <span>Voltar para Dashboard de Incidentes</span>
           </button>
-          <button
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
-            onClick={() => setShowCalendar((prev) => !prev)}
-            type="button"
-          >
-            <Calendar className="h-5 w-5 text-white" />
-            <span>Selecionar Período</span>
-          </button>
-          {showCalendar && (
-            <CalendarSelector
-              startDate={modalStartDate}
-              endDate={modalEndDate}
-              onStartDateChange={setModalStartDate}
-              onEndDateChange={setModalEndDate}
-              onClose={() => setShowCalendar(false)}
-              position="bottom"
-            />
-          )}
         </div>
 
         <div className="space-y-8">
