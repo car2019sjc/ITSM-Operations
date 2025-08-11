@@ -827,24 +827,7 @@ function App() {
 
             {/* Botões principais movidos para acima dos Indicadores Operacionais */}
 
-            {/* Monthly Location Summary */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-white">Sumarização Mensal por Localidade</h3>
-              <button
-                onClick={() => setShowMonthlyLocationSummary(!showMonthlyLocationSummary)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
-              >
-                <Calendar className="h-4 w-4" />
-                <span>{showMonthlyLocationSummary ? 'Ocultar Detalhes' : 'Ver Detalhes'}</span>
-              </button>
-            </div>
 
-            {showMonthlyLocationSummary && (
-              <MonthlyLocationSummary
-                incidents={filteredIncidents}
-                onClose={() => setShowMonthlyLocationSummary(false)}
-              />
-            )}
 
             <SupportQueuesAnalysis incidents={filteredIncidents} />
 
@@ -861,14 +844,40 @@ function App() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <div className="text-xs uppercase tracking-wide text-gray-400 mb-1">Navegação</div>
-                <button
-                  onClick={() => setShowRequestDashboard(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm"
-                >
-                  <FileText className="h-5 w-5" />
-                  <span>Ir para Dashboard de Requests</span>
-                  <ArrowLeft className="h-5 w-5 rotate-180" />
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setShowRequestDashboard(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm w-full"
+                  >
+                    <FileText className="h-5 w-5" />
+                    <span>Ir para Dashboard de Requests</span>
+                    <ArrowLeft className="h-5 w-5 rotate-180" />
+                  </button>
+                  <button
+                    ref={calendarButtonRef}
+                    onClick={() => setShowMainCalendar((v) => !v)}
+                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors shadow-sm w-full relative"
+                  >
+                    <Calendar className="h-5 w-5" />
+                    <span>Selecionar Período</span>
+                  </button>
+                  {showMainCalendar && (
+                    <div
+                      ref={calendarPopoverRef}
+                      className="absolute right-0 mt-2 z-50 bg-[#1C2333] rounded-lg shadow-xl border border-gray-700"
+                      style={{ minWidth: 340 }}
+                    >
+                      <CalendarSelector
+                        startDate={startDate}
+                        endDate={endDate}
+                        onStartDateChange={setStartDate}
+                        onEndDateChange={setEndDate}
+                        onClose={() => setShowMainCalendar(false)}
+                        position="bottom"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <div className="text-xs uppercase tracking-wide text-gray-400 mb-1">Análises Backlog</div>
@@ -897,32 +906,7 @@ function App() {
               onStatusChange={setSelectedStatus}
             />
 
-            <div className="flex justify-end mb-4 relative">
-              <button
-                ref={calendarButtonRef}
-                onClick={() => setShowMainCalendar((v) => !v)}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shadow"
-              >
-                <Calendar className="h-5 w-5" />
-                <span>Selecionar Período</span>
-              </button>
-              {showMainCalendar && (
-                <div
-                  ref={calendarPopoverRef}
-                  className="absolute right-0 mt-2 z-50 bg-[#1C2333] rounded-lg shadow-xl border border-gray-700"
-                  style={{ minWidth: 340 }}
-                >
-                  <CalendarSelector
-                    startDate={startDate}
-                    endDate={endDate}
-                    onStartDateChange={setStartDate}
-                    onEndDateChange={setEndDate}
-                    onClose={() => setShowMainCalendar(false)}
-                    position="bottom"
-                  />
-                </div>
-              )}
-            </div>
+
 
             <DashboardSections
               onSectionClick={handleSectionClick}

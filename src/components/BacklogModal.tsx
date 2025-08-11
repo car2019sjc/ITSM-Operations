@@ -120,6 +120,7 @@ export function BacklogModal({
   };
 
   // Quantidade de chamados em backlog no instante (abertos até o instante e não fechados antes dele)
+  // Exclui chamados com status 'Hold' do cálculo de backlog
   const backlogStockAt = (rows: Row[], instant: dayjs.Dayjs) => {
     const t = instant.valueOf();
     let n = 0;
@@ -127,6 +128,13 @@ export function BacklogModal({
       const opened = toDate(r.Opened);
       if (!opened) continue;
       if (opened.valueOf() > t) continue;
+      
+      // Excluir chamados com status 'Hold' do backlog
+      const state = r.State?.toLowerCase() || '';
+      if (state.includes('hold') || state.includes('pending') || state.includes('aguardando')) {
+        continue;
+      }
+      
       const closed = r.State?.toLowerCase() === 'closed' ? toDate(r.Updated) : null;
       if (!closed || closed.valueOf() > t) n++;
     }
