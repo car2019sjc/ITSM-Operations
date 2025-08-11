@@ -61,11 +61,11 @@ const QUEUE_GROUPS = {
     ],
     categories: ['Hardware', 'Software', 'Service Support']
   },
-  'Asset\'s Manager': {
+  'Asset Management': {
     groups: ['BR-Net/Tel'],
     categories: ['Network', 'Hardware']
   },
-  'Ticket Manager': {
+  'Ticket Management': {
     groups: ['BR-TM'],
     categories: ['Service Support', 'Opened']
   },
@@ -81,8 +81,8 @@ const QUEUE_GROUPS = {
 
 const QUEUE_ICONS = {
   'N1 Local': Building2,
-  'Asset\'s Manager': Phone,
-  'Ticket Manager': TicketIcon,
+  'Asset Management': Phone,
+  'Ticket Management': TicketIcon,
   'N2 - Internet': Network
 };
 
@@ -93,13 +93,13 @@ const QUEUE_COLORS = {
     text: 'text-indigo-400',
     hover: 'hover:bg-indigo-500/20'
   },
-  'Asset\'s Manager': {
+  'Asset Management': {
     bg: 'bg-purple-500/10',
     border: 'border-purple-500/50',
     text: 'text-purple-400',
     hover: 'hover:bg-purple-500/20'
   },
-  'Ticket Manager': {
+  'Ticket Management': {
     bg: 'bg-emerald-500/10',
     border: 'border-emerald-500/50',
     text: 'text-emerald-400',
@@ -285,9 +285,9 @@ export function SupportQueuesAnalysis({ incidents }: SupportQueuesAnalysisProps)
       // Normalize the assignment group
       const normalizedGroup = normalizeLocationName(incident.AssignmentGroup || '');
 
-      // First check if incident belongs to Ticket Manager
+      // First check if incident belongs to Ticket Management
       if (normalizedGroup === 'BR-TM') {
-        const queueStat = stats['Ticket Manager'];
+        const queueStat = stats['Ticket Management'];
         queueStat.total++;
 
         // Count by priority
@@ -305,9 +305,9 @@ export function SupportQueuesAnalysis({ incidents }: SupportQueuesAnalysisProps)
         return; // Skip further processing
       }
 
-      // Then check if incident belongs to Asset's Manager
+      // Then check if incident belongs to Asset Management
       if (normalizedGroup === 'BR-Net/Tel') {
-        const queueStat = stats['Asset\'s Manager'];
+        const queueStat = stats['Asset Management'];
         queueStat.total++;
 
         // Count by priority
@@ -327,8 +327,8 @@ export function SupportQueuesAnalysis({ incidents }: SupportQueuesAnalysisProps)
 
       // For other queues, check their groups
       Object.entries(QUEUE_GROUPS).forEach(([queueName, { groups }]) => {
-        if (queueName !== 'Ticket Manager' && 
-            queueName !== 'Asset\'s Manager' && // Skip already handled queues
+        if (queueName !== 'Ticket Management' && 
+            queueName !== 'Asset Management' && // Skip already handled queues
             groups.some(group => normalizedGroup === group)) {
           const queueStat = stats[queueName];
           queueStat.total++;
@@ -380,13 +380,13 @@ export function SupportQueuesAnalysis({ incidents }: SupportQueuesAnalysisProps)
       // Normalize the assignment group
       const normalizedGroup = normalizeLocationName(incident.AssignmentGroup || '');
 
-      // For Ticket Manager, check if assignment group includes the name
-      if (queueName === 'Ticket Manager') {
+      // For Ticket Management, check if assignment group includes the name
+      if (queueName === 'Ticket Management') {
         return normalizedGroup === 'BR-TM';
       }
 
-      // For Asset's Manager, check if assignment group includes the name
-      if (queueName === 'Asset\'s Manager') {
+      // For Asset Management, check if assignment group includes the name
+      if (queueName === 'Asset Management') {
         return normalizedGroup === 'BR-Net/Tel';
       }
 
@@ -409,8 +409,8 @@ export function SupportQueuesAnalysis({ incidents }: SupportQueuesAnalysisProps)
                            selectedStatus === 'inProgress' ? stats.inProgress :
                            selectedStatus === 'onHold' ? stats.onHold : 0;
 
-        // Always show Ticket Manager and Asset's Manager, even with no incidents
-        if (displayCount === 0 && queueName !== 'Ticket Manager' && queueName !== 'Asset\'s Manager') return null;
+        // Always show Ticket Management and Asset Management, even with no incidents
+        if (displayCount === 0 && queueName !== 'Ticket Management' && queueName !== 'Asset Management') return null;
 
         const statusOption = STATUS_OPTIONS.find(opt => opt.value === selectedStatus)!;
         const StatusIcon = statusOption.icon;

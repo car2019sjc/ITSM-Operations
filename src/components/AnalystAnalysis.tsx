@@ -25,6 +25,7 @@ import { parseISO, isWithinInterval, format, differenceInHours } from 'date-fns'
 import { ptBR } from 'date-fns/locale';
 import { IncidentDetails } from './IncidentDetails';
 import { normalizePriority, getIncidentState } from '../utils/incidentUtils';
+import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 import { normalizeLocationName } from '../utils/locationUtils';
 import { AnalystPerformanceChart } from './AnalystPerformanceChart';
 import { MonthlyIncidentsChart } from './MonthlyIncidentsChart';
@@ -109,12 +110,7 @@ const CHART_COLORS = {
   'Não definido': '#6B7280'
 };
 
-const SLA_THRESHOLDS = {
-  P1: 1,   // 1 hour
-  P2: 4,   // 4 hours
-  P3: 36,  // 36 hours
-  P4: 72   // 72 hours
-};
+
 
 const ANALYST_NAME_MAPPING: Record<string, string> = {
   'Anderson': 'Matheus Borges Brandao',
@@ -359,7 +355,7 @@ export function AnalystAnalysis({ incidents, onClose, startDate, endDate }: Anal
         data[analyst].groups.add(normalizeLocationName(incident.AssignmentGroup));
       }
 
-      const threshold = SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS] || 36;
+      const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
       try {
         const opened = parseISO(incident.Opened);
         const lastUpdate = incident.Updated ? parseISO(incident.Updated) : new Date();

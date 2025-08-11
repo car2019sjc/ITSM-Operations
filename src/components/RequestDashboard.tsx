@@ -5,7 +5,7 @@ import { SearchBar } from './SearchBar';
 import { StatsCard } from './StatsCard';
 import { CategoryCard } from './CategoryCard';
 import { RequestAnalysis } from './RequestAnalysis';
-import { RequestCategoryAnalysis } from './RequestCategoryAnalysis';
+
 import { RequestPriorityAnalysis } from './RequestPriorityAnalysis';
 import { RequestHistoryAnalysis } from './RequestHistoryAnalysis';
 import { RequestSLAAnalysis } from './RequestSLAAnalysis';
@@ -43,6 +43,7 @@ import { normalizeRequestPriority, normalizeRequestStatus } from '../types/reque
 import { normalizeLocationName } from '../utils/locationUtils';
 import { RequestDetails } from './RequestDetails';
 import { CalendarSelector } from './CalendarSelector';
+import { Footer } from './Footer';
 
 interface RequestDashboardProps {
   onBack: () => void;
@@ -51,19 +52,19 @@ interface RequestDashboardProps {
 
 export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [startDate, setStartDate] = useState(format(startOfYear(new Date()), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState('2025-01-01');
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [showRequestAnalysis, setShowRequestAnalysis] = useState(false);
-  const [showCategoryAnalysis, setShowCategoryAnalysis] = useState(false);
+
   const [showPriorityAnalysis, setShowPriorityAnalysis] = useState(false);
   const [showHistoryAnalysis, setShowHistoryAnalysis] = useState(false);
   const [showSLAAnalysis, setShowSLAAnalysis] = useState(false);
   const [showDashboardMetrics, setShowDashboardMetrics] = useState(false);
   const [showPerformanceMetrics, setShowPerformanceMetrics] = useState(false);
   const [showTrendAnalysis, setShowTrendAnalysis] = useState(false);
-  const [showUserAnalysis, setShowUserAnalysis] = useState(false);
+
   const [showLocationAnalysis, setShowLocationAnalysis] = useState(false);
   const [showAIPredictiveAnalysis, setShowAIPredictiveAnalysis] = useState(false);
   const [showInProgressRequests, setShowInProgressRequests] = useState(false);
@@ -315,13 +316,7 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
               onClick={() => setShowRequestAnalysis(!showRequestAnalysis)}
               active={showRequestAnalysis}
             />
-            <CategoryCard
-              title="Por Categoria"
-              description="Distribuição por categoria"
-              icon={FileText}
-              onClick={() => setShowCategoryAnalysis(!showCategoryAnalysis)}
-              active={showCategoryAnalysis}
-            />
+
             <CategoryCard
               title="Por Prioridade"
               description="Análise por prioridade"
@@ -336,13 +331,7 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
               onClick={() => setShowHistoryAnalysis(!showHistoryAnalysis)}
               active={showHistoryAnalysis}
             />
-            <CategoryCard
-              title="Principais usuários"
-              description="Usuários mais frequentes"
-              icon={UserCircle}
-              onClick={() => setShowUserAnalysis(!showUserAnalysis)}
-              active={showUserAnalysis}
-            />
+
             <CategoryCard
               title="Por Localidade"
               description="Análise por localização"
@@ -392,6 +381,7 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
               requests={modalFilteredRequests}
               startDate={modalStartDate}
               endDate={modalEndDate}
+              onClose={() => setShowDashboardMetrics(false)}
             />
           )}
 
@@ -399,15 +389,6 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
             <RequestAnalysis
               requests={modalFilteredRequests}
               onClose={() => setShowRequestAnalysis(false)}
-              startDate={modalStartDate}
-              endDate={modalEndDate}
-            />
-          )}
-
-          {showCategoryAnalysis && (
-            <RequestCategoryAnalysis
-              requests={modalFilteredRequests}
-              onClose={() => setShowCategoryAnalysis(false)}
               startDate={modalStartDate}
               endDate={modalEndDate}
             />
@@ -463,25 +444,6 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
               requests={modalFilteredRequests}
               onClose={() => setShowAIPredictiveAnalysis(false)}
             />
-          )}
-
-          {showUserAnalysis && (
-            <div className="bg-[#151B2B] p-6 rounded-lg space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white">Principais Usuários</h2>
-                <button
-                  onClick={() => setShowUserAnalysis(false)}
-                  className="p-2 hover:bg-[#1C2333] rounded-lg transition-colors"
-                >
-                  <X className="h-5 w-5 text-gray-400 hover:text-white" />
-                </button>
-              </div>
-              <RequestUserAnalysis
-                requests={modalFilteredRequests}
-                startDate={modalStartDate}
-                endDate={modalEndDate}
-              />
-            </div>
           )}
 
           {showLocationAnalysis && (
@@ -567,186 +529,7 @@ export function RequestDashboard({ onBack, requests }: RequestDashboardProps) {
           )}
         </div>
       </main>
-    </div>
-  );
-}
-
-// Component for User Analysis
-function RequestUserAnalysis({ requests, startDate, endDate }: { requests: Request[], startDate?: string, endDate?: string }) {
-  const userStats = React.useMemo(() => {
-    // Filter by date range if provided
-    const filteredRequests = requests.filter(request => {
-      if (!startDate || !endDate) return true;
-      
-      try {
-        const requestDate = parseISO(request.Opened);
-        const start = parseISO(startDate);
-        const end = parseISO(endDate);
-        return isWithinInterval(requestDate, { start, end });
-      } catch (error) {
-        return false;
-      }
-    });
-
-    // Group by user using the "Request item [Catalog Task] Requested for Name" field
-    const userMap = filteredRequests.reduce((acc, request) => {
-      // Use the correct field for user identification
-      const user = request["Request item [Catalog Task] Requested for Name"] || request.RequestedForName || 'Não identificado';
-      
-      if (!acc[user]) {
-        acc[user] = {
-          name: user,
-          total: 0,
-          completed: 0,
-          inProgress: 0,
-          onHold: 0,
-          highPriority: 0,
-          categories: new Set<string>()
-        };
-      }
-      
-      acc[user].total++;
-      
-      // Count by status
-      const state = request.State?.toLowerCase() || '';
-      if (state.includes('complete') || state.includes('closed complete')) {
-        acc[user].completed++;
-      } else if (state.includes('hold') || state.includes('pending') || state.includes('aguardando')) {
-        acc[user].onHold++;
-      } else if (state.includes('progress') || state.includes('assigned')) {
-        acc[user].inProgress++;
-      }
-      
-      // Count high priority
-      if (request.Priority?.toLowerCase().includes('high') || 
-          request.Priority?.toLowerCase().includes('p1') || 
-          request.Priority?.toLowerCase().includes('1')) {
-        acc[user].highPriority++;
-      }
-      
-      // Track categories
-      if (request.RequestItem) {
-        acc[user].categories.add(request.RequestItem);
-      }
-      
-      return acc;
-    }, {} as Record<string, {
-      name: string;
-      total: number;
-      completed: number;
-      inProgress: number;
-      onHold: number;
-      highPriority: number;
-      categories: Set<string>;
-    }>);
-    
-    return Object.values(userMap)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 20); // Top 20 users
-  }, [requests, startDate, endDate]);
-
-  if (userStats.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-400">Nenhum dado de usuário encontrado no período selecionado.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {userStats.slice(0, 6).map(user => (
-          <div 
-            key={user.name}
-            className="bg-[#1C2333] p-4 rounded-lg cursor-pointer hover:bg-[#1F2937] transition-colors"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <UserCircle className="h-5 w-5 text-indigo-400" />
-                  <h4 className="text-lg font-medium text-white truncate">{user.name}</h4>
-                </div>
-                <p className="text-sm text-gray-400 mt-1">
-                  {user.categories.size} {user.categories.size === 1 ? 'categoria' : 'categorias'} solicitadas
-                </p>
-              </div>
-              <div className="text-right">
-                <span className="text-2xl font-bold text-white">{user.total}</span>
-                <p className="text-sm text-gray-400">solicitações</p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="grid grid-cols-4 gap-2 text-sm">
-                <div className="text-center">
-                  <span className="text-blue-400">{user.inProgress}</span>
-                  <p className="text-gray-400 text-xs">Em Andamento</p>
-                </div>
-                <div className="text-center">
-                  <span className="text-orange-400">{user.onHold}</span>
-                  <p className="text-gray-400 text-xs">Em Espera</p>
-                </div>
-                <div className="text-center">
-                  <span className="text-green-400">{user.completed}</span>
-                  <p className="text-gray-400 text-xs">Concluídos</p>
-                </div>
-                <div className="text-center">
-                  <span className="text-red-400">{user.highPriority}</span>
-                  <p className="text-gray-400 text-xs">Alta Prioridade</p>
-                </div>
-              </div>
-
-              <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 float-left"
-                  style={{ width: `${(user.inProgress / user.total) * 100}%` }}
-                />
-                <div
-                  className="h-full bg-orange-500 float-left"
-                  style={{ width: `${(user.onHold / user.total) * 100}%` }}
-                />
-                <div
-                  className="h-full bg-green-500 float-left"
-                  style={{ width: `${(user.completed / user.total) * 100}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="bg-[#1C2333] rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-[#151B2B]">
-            <tr>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-400">Usuário</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">Total</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">Em Andamento</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">Em Espera</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">Concluídos</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">Alta Prioridade</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">Categorias</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700">
-            {userStats.map((user) => (
-              <tr 
-                key={user.name}
-                className="hover:bg-[#151B2B] transition-colors"
-              >
-                <td className="px-6 py-4 text-sm text-white">{user.name}</td>
-                <td className="px-6 py-4 text-sm text-center text-white">{user.total}</td>
-                <td className="px-6 py-4 text-sm text-center text-blue-400">{user.inProgress}</td>
-                <td className="px-6 py-4 text-sm text-center text-orange-400">{user.onHold}</td>
-                <td className="px-6 py-4 text-sm text-center text-green-400">{user.completed}</td>
-                <td className="px-6 py-4 text-sm text-center text-red-400">{user.highPriority}</td>
-                <td className="px-6 py-4 text-sm text-center text-gray-400">{user.categories.size}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Footer />
     </div>
   );
 }

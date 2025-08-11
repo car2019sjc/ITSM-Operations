@@ -213,13 +213,7 @@ export function DashboardSections({
           sectionKey: "monthly-location-variation",
           onClick: () => handleSectionClick("monthly-location-variation")
         },
-        {
-          title: "Volumetria Comparativa",
-          description: "Comparação de volumes entre localidades",
-          icon: BarChart3,
-          sectionKey: "comparative-volumetry",
-          onClick: () => handleSectionClick("comparative-volumetry")
-        },
+
         {
           title: "Distribuição por Localidade",
           description: "Distribuição de incidentes e requisições por local",

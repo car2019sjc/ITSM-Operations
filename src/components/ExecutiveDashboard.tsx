@@ -58,12 +58,14 @@ import { ptBR } from 'date-fns/locale';
 import { normalizePriority, getIncidentState } from '../utils/incidentUtils';
 import { normalizeRequestPriority, normalizeRequestStatus } from '../types/request';
 import { normalizeLocationName } from '../utils/locationUtils';
+import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 import { MonthlyVariation } from './MonthlyVariation';
 import { MonthlyLocationVariation } from './MonthlyLocationVariation';
 import { CalendarSelector } from './CalendarSelector';
 import { TopIncidentsByStringAssociado } from './TopIncidentsByStringAssociado';
 import { DashboardSections } from './DashboardSections';
 import { AIPredictiveAnalysis } from './AIPredictiveAnalysis';
+import { Footer } from './Footer';
 
 interface ExecutiveDashboardProps {
   incidents: Incident[];
@@ -139,12 +141,11 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
         
         // Check if within SLA based on priority
         const priority = incident.Priority?.toLowerCase() || '';
-        const threshold = 
-          priority.includes('p1') || priority.includes('1') ? 1 :  // 1 hour
-          priority.includes('p2') || priority.includes('2') ? 4 :  // 4 hours
-          priority.includes('p3') || priority.includes('3') ? 36 : // 36 hours
-          priority.includes('p4') || priority.includes('4') ? 72 : // 72 hours
-          36; // default
+        const normalizedPriority = priority.includes('p1') || priority.includes('1') ? 'P1' :
+                                  priority.includes('p2') || priority.includes('2') ? 'P2' :
+                                  priority.includes('p3') || priority.includes('3') ? 'P3' :
+                                  priority.includes('p4') || priority.includes('4') ? 'P4' : 'P3';
+        const threshold = INCIDENT_SLA_THRESHOLDS[normalizedPriority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
         
         try {
           const opened = parseISO(incident.Opened);
@@ -202,8 +203,8 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
       const monthEnd = endOfMonth(month);
       const monthLabel = format(month, 'MMM/yy', { locale: ptBR });
 
-      // Count incidents for this month
-      const monthIncidents = filteredData.incidents.filter(incident => {
+      // Count incidents for this month (usando dados originais, não filtrados)
+      const monthIncidents = incidents.filter(incident => {
         try {
           const incidentDate = parseISO(incident.Opened);
           return isWithinInterval(incidentDate, { start: monthStart, end: monthEnd });
@@ -212,8 +213,8 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
         }
       });
 
-      // Count requests for this month
-      const monthRequests = filteredData.requests.filter(request => {
+      // Count requests for this month (usando dados originais, não filtrados)
+      const monthRequests = requests.filter(request => {
         try {
           const requestDate = parseISO(request.Opened);
           return isWithinInterval(requestDate, { start: monthStart, end: monthEnd });
@@ -235,12 +236,7 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
           totalForSLA++;
           
           // Check if within SLA based on priority
-          const threshold = 
-            priority === 'P1' ? 1 :  // 1 hour
-            priority === 'P2' ? 4 :  // 4 hours
-            priority === 'P3' ? 36 : // 36 hours
-            priority === 'P4' ? 72 : // 72 hours
-            36; // default
+          const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
           
           try {
             const opened = parseISO(incident.Opened);
@@ -268,8 +264,8 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
         const prevMonthStart = startOfMonth(prevMonthData);
         const prevMonthEnd = endOfMonth(prevMonthData);
         
-        // Count previous month incidents
-        const prevMonthIncidents = filteredData.incidents.filter(incident => {
+        // Count previous month incidents (usando dados originais)
+        const prevMonthIncidents = incidents.filter(incident => {
           try {
             const incidentDate = parseISO(incident.Opened);
             return isWithinInterval(incidentDate, { start: prevMonthStart, end: prevMonthEnd });
@@ -278,8 +274,8 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
           }
         }).length;
 
-        // Count previous month requests
-        const prevMonthRequests = filteredData.requests.filter(request => {
+        // Count previous month requests (usando dados originais)
+        const prevMonthRequests = requests.filter(request => {
           try {
             const requestDate = parseISO(request.Opened);
             return isWithinInterval(requestDate, { start: prevMonthStart, end: prevMonthEnd });
@@ -308,7 +304,7 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
         requestsPercentChange
       };
     });
-  }, [filteredData, startDate, endDate]);
+  }, [incidents, requests, startDate, endDate]);
 
   // Location distribution data
   const locationData = useMemo(() => {
@@ -446,12 +442,7 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
         totalForSLA++;
         
         // Check if within SLA based on priority
-        const threshold = 
-          priority === 'P1' ? 1 :  // 1 hour
-          priority === 'P2' ? 4 :  // 4 hours
-          priority === 'P3' ? 36 : // 36 hours
-          priority === 'P4' ? 72 : // 72 hours
-          36; // default
+        const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
         
         try {
           const opened = parseISO(incident.Opened);
@@ -795,7 +786,11 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
                           textAnchor="end"
                           height={60}
                         />
-                        <YAxis tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                        <YAxis 
+                          tick={{ fill: '#9CA3AF', fontSize: 12 }} 
+                          domain={[0, 'dataMax + 50']}
+                          allowDataOverflow={false}
+                        />
                         <Tooltip content={<CustomTooltip />} />
                         <Legend />
                         <Bar
@@ -803,12 +798,14 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
                           name="Incidentes"
                           fill={CHART_COLORS.incidents}
                           radius={[4, 4, 0, 0]}
+                          minPointSize={2}
                         >
                           <LabelList
                             dataKey="incidentsTotal"
                             position="top"
                             fill="#9CA3AF"
                             fontSize={12}
+                            formatter={(value: number) => value > 0 ? value : ''}
                           />
                         </Bar>
                         <Bar
@@ -816,12 +813,14 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
                           name="Requisições"
                           fill={CHART_COLORS.requests}
                           radius={[4, 4, 0, 0]}
+                          minPointSize={2}
                         >
                           <LabelList
                             dataKey="requestsTotal"
                             position="top"
                             fill="#9CA3AF"
                             fontSize={12}
+                            formatter={(value: number) => value > 0 ? value : ''}
                           />
                         </Bar>
                       </BarChart>
@@ -1268,6 +1267,7 @@ export function ExecutiveDashboard({ incidents, requests, onBack }: ExecutiveDas
           </>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

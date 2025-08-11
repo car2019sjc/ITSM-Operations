@@ -17,18 +17,14 @@ import { format, parseISO, differenceInHours, differenceInDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale';
 import { normalizePriority } from '../utils/incidentUtils';
 import { normalizeLocationName } from '../utils/locationUtils';
+import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 
 interface IncidentDetailsProps {
   incident: Incident;
   onClose: () => void;
 }
 
-const SLA_THRESHOLDS = {
-  P1: 1,   // 1 hour
-  P2: 4,   // 4 hours
-  P3: 36,  // 36 hours
-  P4: 72   // 72 hours
-};
+
 
 export function IncidentDetails({ incident, onClose }: IncidentDetailsProps) {
   const [showComments, setShowComments] = useState(true);
@@ -126,8 +122,13 @@ export function IncidentDetails({ incident, onClose }: IncidentDetailsProps) {
   const getSLABreachTime = () => {
     try {
       const priority = normalizePriority(incident.Priority);
-      const threshold = SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS] || 36;
+      const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
       const opened = parseDateFlexible(incident.Opened);
+      
+      // Check if incident is currently on hold
+      const state = incident.State?.toLowerCase() || '';
+      const isOnHold = state.includes('hold') || state.includes('pending') || state.includes('aguardando');
+      
       let lastUpdate: Date | undefined;
       if (incident.Updated && parseDateFlexible(incident.Updated)) {
         lastUpdate = parseDateFlexible(incident.Updated);
@@ -136,15 +137,29 @@ export function IncidentDetails({ incident, onClose }: IncidentDetailsProps) {
       } else {
         lastUpdate = new Date();
       }
+      
       if (!opened || !lastUpdate) return null;
-      const totalHours = differenceInHours(lastUpdate, opened);
+      
+      // For incidents on hold, calculate SLA only up to the Updated date (when put on hold)
+      // Don't count time while on hold against SLA
+      let effectiveEndDate: Date;
+      if (isOnHold && incident.Updated) {
+        effectiveEndDate = parseDateFlexible(incident.Updated) || lastUpdate;
+      } else {
+        effectiveEndDate = lastUpdate;
+      }
+      
+      const totalHours = differenceInHours(effectiveEndDate, opened);
       if (totalHours <= threshold) {
         return null; // Dentro do SLA
       }
+      
       const hoursOverSLA = totalHours - threshold;
       if (isNaN(hoursOverSLA) || hoursOverSLA < 0) return null;
+      
       const days = Math.floor(hoursOverSLA / 24);
       const remainingHours = hoursOverSLA % 24;
+      
       if (days > 0) {
         return `${days} ${days === 1 ? 'dia' : 'dias'}${remainingHours > 0 ? ` e ${remainingHours} ${remainingHours === 1 ? 'hora' : 'horas'}` : ''} fora do SLA`;
       }

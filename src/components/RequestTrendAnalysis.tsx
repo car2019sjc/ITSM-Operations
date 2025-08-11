@@ -11,7 +11,8 @@ import {
   LineChart,
   Line,
   AreaChart,
-  Area
+  Area,
+  LabelList
 } from 'recharts';
 import { 
   X, 
@@ -19,7 +20,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Request, normalizeRequestPriority, normalizeRequestStatus } from '../types/request';
-import { parseISO, isWithinInterval, format, startOfMonth, endOfMonth, eachMonthOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
+import { parseISO, isWithinInterval, format, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface RequestTrendAnalysisProps {
@@ -74,7 +75,7 @@ export function RequestTrendAnalysis({ requests, onClose, startDate, endDate }: 
       });
 
       // Count by status
-      ['NEW', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].forEach(status => {
+      ['NEW', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED'].forEach(status => {
         data[`${status}_count`] = monthRequests.filter(r => 
           normalizeRequestStatus(r.State) === status
         ).length;
@@ -85,41 +86,61 @@ export function RequestTrendAnalysis({ requests, onClose, startDate, endDate }: 
         ? (data.COMPLETED_count / monthRequests.length) * 100 
         : 0;
 
+
+
       return data;
     });
   }, [requests, startDate, endDate]);
 
-  // Weekly trend data
-  const weeklyData = useMemo(() => {
+  // Bi-weekly (quinzenal) trend data
+  const biWeeklyData = useMemo(() => {
     if (!startDate || !endDate) return [];
 
     const start = parseISO(startDate);
     const end = parseISO(endDate);
-    const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 }); // Start on Monday
+    
+    // Create bi-weekly intervals (15 days each)
+    const biWeeklyIntervals = [];
+    let currentStart = start;
+    
+    while (currentStart <= end) {
+      const intervalEnd = new Date(currentStart);
+      intervalEnd.setDate(currentStart.getDate() + 14); // 15 days (0-14)
+      
+      // Don't go beyond the end date
+      const actualEnd = intervalEnd > end ? end : intervalEnd;
+      
+      biWeeklyIntervals.push({
+        start: currentStart,
+        end: actualEnd
+      });
+      
+      // Move to next bi-weekly period
+      currentStart = new Date(intervalEnd);
+      currentStart.setDate(intervalEnd.getDate() + 1);
+    }
 
-    return weeks.map(week => {
-      const weekStart = startOfWeek(week, { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(week, { weekStartsOn: 1 });
-
-      const weekRequests = requests.filter(request => {
+    return biWeeklyIntervals.map(interval => {
+      const biWeeklyRequests = requests.filter(request => {
         try {
           const requestDate = parseISO(request.Opened);
-          return isWithinInterval(requestDate, { start: weekStart, end: weekEnd });
+          return isWithinInterval(requestDate, { start: interval.start, end: interval.end });
         } catch (error) {
           return false;
         }
       });
 
       return {
-        week: `${format(weekStart, 'dd/MM', { locale: ptBR })} - ${format(weekEnd, 'dd/MM', { locale: ptBR })}`,
-        total: weekRequests.length,
-        HIGH: weekRequests.filter(r => normalizeRequestPriority(r.Priority) === 'HIGH').length,
-        MEDIUM: weekRequests.filter(r => normalizeRequestPriority(r.Priority) === 'MEDIUM').length,
-        LOW: weekRequests.filter(r => normalizeRequestPriority(r.Priority) === 'LOW').length,
-        NEW: weekRequests.filter(r => normalizeRequestStatus(r.State) === 'NEW').length,
-        IN_PROGRESS: weekRequests.filter(r => normalizeRequestStatus(r.State) === 'IN_PROGRESS').length,
-        COMPLETED: weekRequests.filter(r => normalizeRequestStatus(r.State) === 'COMPLETED').length,
-        CANCELLED: weekRequests.filter(r => normalizeRequestStatus(r.State) === 'CANCELLED').length
+        period: `${format(interval.start, 'dd/MM', { locale: ptBR })} - ${format(interval.end, 'dd/MM', { locale: ptBR })}`,
+        total: biWeeklyRequests.length,
+        HIGH: biWeeklyRequests.filter(r => normalizeRequestPriority(r.Priority) === 'HIGH').length,
+        MEDIUM: biWeeklyRequests.filter(r => normalizeRequestPriority(r.Priority) === 'MEDIUM').length,
+        LOW: biWeeklyRequests.filter(r => normalizeRequestPriority(r.Priority) === 'LOW').length,
+        NEW: biWeeklyRequests.filter(r => normalizeRequestStatus(r.State) === 'NEW').length,
+        IN_PROGRESS: biWeeklyRequests.filter(r => normalizeRequestStatus(r.State) === 'IN_PROGRESS').length,
+        ON_HOLD: biWeeklyRequests.filter(r => normalizeRequestStatus(r.State) === 'ON_HOLD').length,
+        COMPLETED: biWeeklyRequests.filter(r => normalizeRequestStatus(r.State) === 'COMPLETED').length,
+        CANCELLED: biWeeklyRequests.filter(r => normalizeRequestStatus(r.State) === 'CANCELLED').length
       };
     });
   }, [requests, startDate, endDate]);
@@ -305,6 +326,15 @@ export function RequestTrendAnalysis({ requests, onClose, startDate, endDate }: 
               />
               <Line
                 type="monotone"
+                dataKey="ON_HOLD_count"
+                name="Em Espera"
+                stroke="#F59E0B"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+              <Line
+                type="monotone"
                 dataKey="COMPLETED_count"
                 name="Concluídos"
                 stroke={CHART_COLORS.COMPLETED}
@@ -361,71 +391,38 @@ export function RequestTrendAnalysis({ requests, onClose, startDate, endDate }: 
                 name="Taxa de Conclusão"
                 fill="#10B981"
                 radius={[4, 4, 0, 0]}
-              />
+              >
+                <LabelList
+                  dataKey="completionRate"
+                  position="top"
+                  fill="#9CA3AF"
+                  fontSize={12}
+                  formatter={(value: number) => `${value.toFixed(1)}%`}
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Category Trends */}
-      <div className="bg-[#1C2333] p-4 rounded-lg">
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="h-5 w-5 text-indigo-400" />
-          <h3 className="text-lg font-medium text-white">Tendência por Categoria</h3>
-        </div>
-        <div className="h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={categoryTrends}
-              margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis
-                dataKey="month"
-                tick={{ fill: '#9CA3AF' }}
-                interval={0}
-                angle={-45}
-                textAnchor="end"
-                height={60}
-              />
-              <YAxis tick={{ fill: '#9CA3AF' }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              {categoryTrends.length > 0 && Object.keys(categoryTrends[0])
-                .filter(key => key !== 'month')
-                .map((category, index) => (
-                  <Line
-                    key={category}
-                    type="monotone"
-                    dataKey={category}
-                    name={category}
-                    stroke={`hsl(${index * 60}, 70%, 60%)`}
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
 
-      {/* Weekly Trend */}
+
+      {/* Bi-weekly Trend */}
       <div className="bg-[#1C2333] p-4 rounded-lg">
         <div className="flex items-center gap-2 mb-4">
           <Calendar className="h-5 w-5 text-indigo-400" />
-          <h3 className="text-lg font-medium text-white">Tendência Semanal</h3>
+          <h3 className="text-lg font-medium text-white">Tendência Quinzenal</h3>
         </div>
         <div className="h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={weeklyData}
+              data={biWeeklyData}
               margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis
-                dataKey="week"
-                tick={{ fill: '#9CA3AF' }}
+                dataKey="period"
+                tick={{ fill: '#ffffff', fontSize: 10 }}
                 interval={0}
                 angle={-45}
                 textAnchor="end"

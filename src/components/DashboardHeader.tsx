@@ -26,19 +26,21 @@ export function DashboardHeader({
               src="/onset-logo.svg" 
               alt="OnSet Logo" 
               className="h-20 w-auto mr-3" 
-              style={{ height: '60px', width: 'auto' }} /* Increased to 60px for better visibility */
+              style={{ height: '160px', width: 'auto' }} /* Increased to 160px for better visibility */
             />
-            <h1 className="ml-3 text-2xl font-bold text-white">
-              {title || "IT Operations Dashboard"}
-              <span className="ml-2 px-2 py-1 text-xs font-bold bg-yellow-500/20 text-yellow-400 rounded-full">
-                Beta
-              </span>
-              {environment.isDevelopment && (
-                <span className="ml-2 px-2 py-1 text-xs font-medium bg-yellow-500/20 text-yellow-400 rounded-full">
-                  Development
-                </span>
-              )}
-            </h1>
+            <div className="ml-3">
+              <h1 className="text-2xl font-bold text-white">
+                {title || "IT Operations Dashboard"}
+                {environment.isDevelopment && (
+                  <span className="ml-2 px-2 py-1 text-xs font-medium bg-yellow-500/20 text-yellow-400 rounded-full">
+                    Development
+                  </span>
+                )}
+              </h1>
+              <p className="text-orange-500 text-sm mt-1">
+                Conectando Inteligência e Tecnologia
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {onReload && (

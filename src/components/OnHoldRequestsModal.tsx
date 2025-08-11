@@ -17,6 +17,7 @@ import { Request } from '../types/request';
 import { parseISO, format, differenceInDays, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { normalizeRequestPriority, normalizeRequestStatus } from '../types/request';
+import { REQUEST_SLA_THRESHOLDS } from '../constants';
 import { normalizeLocationName } from '../utils/locationUtils';
 
 interface OnHoldRequestsModalProps {
@@ -24,12 +25,7 @@ interface OnHoldRequestsModalProps {
   onClose: () => void;
 }
 
-// SLA thresholds for requests (in days)
-const REQUEST_SLA_THRESHOLDS = {
-  HIGH: 3,    // 3 days
-  MEDIUM: 5,  // 5 days
-  LOW: 7      // 7 days
-};
+
 
 const CHART_COLORS = {
   HIGH: '#EF4444',
@@ -136,10 +132,28 @@ export function OnHoldRequestsModal({ requests, onClose }: OnHoldRequestsModalPr
 
   const getHoldDuration = (request: Request) => {
     try {
-      const opened = parseISO(request.Opened);
+      // Since we don't have exact Hold date, use a more reasonable approach:
+      // If Updated date exists and is recent (within last 30 days), use it
+      // Otherwise, assume it was put on hold recently (use a conservative estimate)
       const now = new Date();
-      const days = differenceInDays(now, opened);
-      const hours = differenceInHours(now, opened) % 24;
+      const opened = parseISO(request.Opened);
+      const updated = request.Updated ? parseISO(request.Updated) : opened;
+      
+      // Calculate days since updated
+      const daysSinceUpdated = differenceInHours(now, updated) / 24;
+      
+      let holdStartDate: Date;
+      if (daysSinceUpdated <= 30) {
+        // If updated recently, assume that's when it went on hold
+        holdStartDate = updated;
+      } else {
+        // If updated long ago, assume it was put on hold more recently
+        // Use a conservative estimate of 7 days ago
+        holdStartDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+      }
+      
+      const days = differenceInDays(now, holdStartDate);
+      const hours = differenceInHours(now, holdStartDate) % 24;
       
       if (days > 0) {
         return `${days} ${days === 1 ? 'dia' : 'dias'}${hours > 0 ? ` e ${hours} ${hours === 1 ? 'hora' : 'horas'}` : ''}`;

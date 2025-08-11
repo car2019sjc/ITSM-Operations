@@ -1,3 +1,47 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Ajustes para inputs de data/tempo no tema escuro */
+input[type="date"],
+input[type="time"],
+input[type="month"],
+input[type="datetime-local"] {
+  color-scheme: dark; /* faz com que os ícones nativos usem o tema escuro */
+}
+
+/* Força ícones dos pickers (Chrome/Edge/WebKit) a ficarem brancos no fundo escuro */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+  opacity: 0.9;
+}
+
+/* Remove background azul padrão no hover dos ícones em alguns navegadores */
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover,
+input[type="month"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  background: transparent;
+}
+
+/* ===== Acessibilidade dos campos Mês e Horário no BacklogModal ===== */
+/* Garante melhor contraste: texto preto nos campos com fundo claro */
+input[type="time"],
+input[type="month"] {
+  color: #000 !important;
+}
+/* Alguns navegadores WebKit usam camadas internas para o texto */
+input[type="time"]::-webkit-datetime-edit,
+input[type="month"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit-fields-wrapper,
+input[type="month"]::-webkit-datetime-edit-fields-wrapper,
+input[type="time"]::-webkit-datetime-edit-text,
+input[type="time"]::-webkit-datetime-edit-hour-field,
+input[type="time"]::-webkit-datetime-edit-minute-field,
+input[type="month"]::-webkit-datetime-edit-year-field,
+input[type="month"]::-webkit-datetime-edit-month-field {
+  color: #000 !important;
+}

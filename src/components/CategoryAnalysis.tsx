@@ -474,7 +474,7 @@ export function CategoryAnalysis({ incidents, onClose, startDate, endDate }: Cat
               <Legend 
                 formatter={(value) => (
                   <span style={{ color: CHART_COLORS[value as keyof typeof CHART_COLORS] }}>
-                    {value}
+                    {value === 'P1' ? 'Prioridade 1' : value === 'P2' ? 'Prioridade 2' : value === 'P3' ? 'Prioridade 3' : value === 'P4' ? 'Prioridade 4' : value}
                   </span>
                 )}
                 iconType="circle"
@@ -535,12 +535,25 @@ export function CategoryAnalysis({ incidents, onClose, startDate, endDate }: Cat
                   borderRadius: '8px',
                   color: '#fff'
                 }}
-                formatter={(value: number, name: string) => [
-                  `${value} chamados`,
-                  name
-                ]}
+                formatter={(value: number, name: string) => {
+                  const title = ((): string => {
+                    const n = String(name);
+                    if (n === 'P1') return 'Prioridade 1';
+                    if (n === 'P2') return 'Prioridade 2';
+                    if (n === 'P3') return 'Prioridade 3';
+                    if (n === 'P4') return 'Prioridade 4';
+                    return n;
+                  })();
+                  return [`${value} chamados`, title];
+                }}
               />
-              <Legend />
+              <Legend formatter={(value: string) => {
+                if (value === 'P1') return 'Prioridade 1';
+                if (value === 'P2') return 'Prioridade 2';
+                if (value === 'P3') return 'Prioridade 3';
+                if (value === 'P4') return 'Prioridade 4';
+                return value;
+              }} />
               <Bar dataKey="P1" fill={CHART_COLORS.P1} stackId="stack" radius={[0, 0, 0, 0]} />
               <Bar dataKey="P2" fill={CHART_COLORS.P2} stackId="stack" radius={[0, 0, 0, 0]} />
               <Bar dataKey="P3" fill={CHART_COLORS.P3} stackId="stack" radius={[0, 0, 0, 0]} />
@@ -607,7 +620,7 @@ export function CategoryAnalysis({ incidents, onClose, startDate, endDate }: Cat
             key={priority}
             className="bg-[#1C2333] p-4 rounded-lg"
           >
-            <h4 className="text-sm text-gray-400 mb-1">Prioridade {priority}</h4>
+            <h4 className="text-sm text-gray-400 mb-1">{priority === 'P1' ? 'Prioridade 1' : priority === 'P2' ? 'Prioridade 2' : priority === 'P3' ? 'Prioridade 3' : priority === 'P4' ? 'Prioridade 4' : 'Não definido'}</h4>
             <p className="text-2xl font-bold" style={{ color: CHART_COLORS[priority as keyof typeof CHART_COLORS] }}>
               {count}
             </p>
@@ -659,7 +672,7 @@ export function CategoryAnalysis({ incidents, onClose, startDate, endDate }: Cat
                           onClick={() => isClickable && handlePriorityClick(category.category, key)}
                         >
                           <div className="flex items-center justify-center gap-1">
-                            <p className="text-sm text-gray-400">{key}</p>
+                            <p className="text-sm text-gray-400">{key === 'P1' ? 'Prioridade 1' : key === 'P2' ? 'Prioridade 2' : key === 'P3' ? 'Prioridade 3' : key === 'P4' ? 'Prioridade 4' : key}</p>
                             {isClickable && (
                               <Icon className="h-3 w-3" style={{ color: CHART_COLORS[key as keyof typeof CHART_COLORS] }} />
                             )}

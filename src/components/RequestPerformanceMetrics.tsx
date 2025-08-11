@@ -113,7 +113,7 @@ export function RequestPerformanceMetrics({ requests, onClose, startDate, endDat
     
     return Object.values(groups)
       .sort((a, b) => b.totalRequests - a.totalRequests)
-      .slice(0, 10);
+      .slice(0, 5);
   }, [filteredRequests]);
 
   // Calculate monthly performance
@@ -251,7 +251,11 @@ export function RequestPerformanceMetrics({ requests, onClose, startDate, endDat
             <div key={entry.name} className="flex items-center justify-between gap-4">
               <span style={{ color: entry.color }}>{entry.name}</span>
               <span className="text-white">
-                {entry.name.includes('dias') ? `${entry.value.toFixed(1)} dias` : entry.value}
+                {entry.name.includes('dias') 
+                  ? `${entry.value.toFixed(1)} dias` 
+                  : entry.name.includes('%') 
+                    ? `${entry.value.toFixed(2)}%`
+                    : entry.value}
               </span>
             </div>
           ))}
@@ -336,7 +340,7 @@ export function RequestPerformanceMetrics({ requests, onClose, startDate, endDat
       <div className="bg-[#1C2333] p-4 rounded-lg">
         <div className="flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-indigo-400" />
-          <h3 className="text-lg font-medium text-white">Tempo de Resolução por Grupo</h3>
+          <h3 className="text-lg font-medium text-white">Tempo de Resolução Top 5 por Grupo</h3>
         </div>
         <div className="h-[400px]">
           <ResponsiveContainer width="100%" height="100%">

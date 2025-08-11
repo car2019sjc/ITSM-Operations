@@ -41,6 +41,7 @@ import {
   Timer
 } from 'lucide-react';
 import { Request, normalizeRequestPriority, normalizeRequestStatus } from '../types/request';
+import { REQUEST_SLA_THRESHOLDS } from '../constants';
 import { parseISO, isWithinInterval, format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -59,12 +60,7 @@ const CHART_COLORS = {
   outsideSLA: '#EF4444'
 };
 
-// SLA thresholds for requests (in days)
-const REQUEST_SLA_THRESHOLDS = {
-  HIGH: 7,    // 7 dias
-  MEDIUM: 10, // 10 dias
-  LOW: 15     // 15 dias
-};
+
 
 export function RequestSLAAnalysis({ requests, onClose, startDate, endDate }: RequestSLAAnalysisProps) {
   const [selectedPriority, setSelectedPriority] = useState<string | null>(null);
@@ -131,18 +127,29 @@ export function RequestSLAAnalysis({ requests, onClose, startDate, endDate }: Re
       
       try {
         const opened = parseISO(request.Opened);
-        const closed = request.Updated && isCompleted ? parseISO(request.Updated) : new Date();
-        const daysToResolve = differenceInDays(closed, opened);
         
-        if (isCompleted) {
+        if (isCompleted && request.Updated) {
+          // Para requests concluídos, usar a data de fechamento real
+          const closed = parseISO(request.Updated);
+          const daysToResolve = differenceInDays(closed, opened);
+          
           data[priority].completedCount++;
           data[priority].totalResolutionDays += daysToResolve;
-        }
-        
-        if (daysToResolve <= threshold) {
-          data[priority].withinSLA++;
+          
+          if (daysToResolve <= threshold) {
+            data[priority].withinSLA++;
+          } else {
+            data[priority].outsideSLA++;
+          }
         } else {
-          data[priority].outsideSLA++;
+          // Para requests em andamento, calcular tempo decorrido até hoje
+          const daysElapsed = differenceInDays(new Date(), opened);
+          
+          if (daysElapsed <= threshold) {
+            data[priority].withinSLA++;
+          } else {
+            data[priority].outsideSLA++;
+          }
         }
       } catch (error) {
         data[priority].outsideSLA++;

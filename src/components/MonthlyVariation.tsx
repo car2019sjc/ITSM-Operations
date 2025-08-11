@@ -17,6 +17,7 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { normalizePriority, getIncidentState } from '../utils/incidentUtils';
+import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 
 interface MonthlyVariationProps {
   incidents: Incident[];
@@ -96,12 +97,7 @@ export function MonthlyVariation({ incidents, requests, startDate, endDate, onCl
           totalForSLA++;
           
           // Check if within SLA based on priority
-          const threshold = 
-            priority === 'P1' ? 1 :  // 1 hour
-            priority === 'P2' ? 4 :  // 4 hours
-            priority === 'P3' ? 36 : // 36 hours
-            priority === 'P4' ? 72 : // 72 hours
-            36; // default
+          const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
           
           try {
             const opened = parseISO(incident.Opened);

@@ -66,9 +66,27 @@ export function OnHoldIncidentsModal({ incidents, onClose }: OnHoldIncidentsModa
 
   const getHoldDuration = (incident: Incident) => {
     try {
-      const opened = parseISO(incident.Opened);
+      // Since we don't have exact Hold date, use a more reasonable approach:
+      // If Updated date exists and is recent (within last 30 days), use it
+      // Otherwise, assume it was put on hold recently (use a conservative estimate)
       const now = new Date();
-      const hours = differenceInHours(now, opened);
+      const opened = parseISO(incident.Opened);
+      const updated = incident.Updated ? parseISO(incident.Updated) : opened;
+      
+      // Calculate days since updated
+      const daysSinceUpdated = differenceInHours(now, updated) / 24;
+      
+      let holdStartDate: Date;
+      if (daysSinceUpdated <= 30) {
+        // If updated recently, assume that's when it went on hold
+        holdStartDate = updated;
+      } else {
+        // If updated long ago, assume it was put on hold more recently
+        // Use a conservative estimate of 7 days ago
+        holdStartDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+      }
+      
+      const hours = differenceInHours(now, holdStartDate);
       const days = Math.floor(hours / 24);
       const remainingHours = hours % 24;
       

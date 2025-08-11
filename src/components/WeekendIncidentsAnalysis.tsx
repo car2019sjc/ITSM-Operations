@@ -1,6 +1,30 @@
 import React, { useState } from 'react';
-import { Calendar, AlertCircle, Clock, ExternalLink } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LabelList } from 'recharts';
+import { Calendar, Clock, ExternalLink } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+// Error boundary local para evitar que erros no Recharts derrubem o app
+class WeekendChartErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }>{
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch() {
+    // opcional: logar
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 bg-red-900/30 border border-red-700 rounded text-red-200 text-sm">
+          Ocorreu um erro ao renderizar o gráfico. Feche e reabra este painel.
+        </div>
+      );
+    }
+    return this.props.children as any;
+  }
+}
 
 interface WeekendIncidentsAnalysisProps {
   data: any;
@@ -17,6 +41,7 @@ export function WeekendIncidentsAnalysis({ data, dateRange }: WeekendIncidentsAn
 
   // Estado para localidade selecionada no drilldown
   const [selectedLocalidade, setSelectedLocalidade] = useState<string | null>(null);
+  const [listKey] = useState(0);
 
   // Estado para modal de detalhes do chamado
   const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
@@ -44,28 +69,38 @@ export function WeekendIncidentsAnalysis({ data, dateRange }: WeekendIncidentsAn
     return holidays.includes(monthDay);
   };
 
-  // Filtrar chamados de finais de semana e feriados
+  // Intervalo ativo (se fornecido)
+  const rangeStart = dateRange?.start ? new Date(dateRange.start) : null;
+  const rangeEnd = dateRange?.end ? new Date(dateRange.end) : null;
+
+  // Filtrar chamados de finais de semana e feriados, respeitando o período
   const weekendIncidents = data.filter((incident: any) => {
     const incidentDate = new Date(incident.Opened);
+    if (isNaN(incidentDate.getTime())) return false;
+    // filtro por período, se disponível
+    if (rangeStart && incidentDate < rangeStart) return false;
+    if (rangeEnd && incidentDate > rangeEnd) return false;
     return isWeekend(incidentDate) || isHoliday(incidentDate);
   });
 
   // Agrupar por tipo de dia (fim de semana ou feriado)
-  const groupedIncidents = weekendIncidents.reduce((acc: any, incident: any) => {
-    const date = new Date(incident.Opened);
-    const type = isHoliday(date) ? 'Feriado' : 'Fim de Semana';
-    
-    if (!acc[type]) {
-      acc[type] = [];
-    }
-    acc[type].push(incident);
-    return acc;
-  }, {});
+  // Agrupamento por tipo de dia (não utilizado hoje, mas útil para extensões futuras)
+  // const groupedIncidents = weekendIncidents.reduce((acc: any, incident: any) => {
+  //   const date = new Date(incident.Opened);
+  //   const type = isHoliday(date) ? 'Feriado' : 'Fim de Semana';
+  //   if (!acc[type]) acc[type] = [];
+  //   acc[type].push(incident);
+  //   return acc;
+  // }, {} as Record<string, any[]>);
 
   // Encontrar todos os dias únicos de finais de semana/feriados
   const diasUnicos = new Set(weekendIncidents.map((incident: any) => {
     const d = new Date(incident.Opened);
-    return d.toISOString().slice(0, 10); // yyyy-mm-dd
+    // usar data local para evitar desvios por timezone
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`; // yyyy-mm-dd
   }));
   const totalDiasUnicos = diasUnicos.size;
   const mediaPorDia = totalDiasUnicos > 0 ? (weekendIncidents.length / totalDiasUnicos).toFixed(1) : '0';
@@ -87,7 +122,7 @@ export function WeekendIncidentsAnalysis({ data, dateRange }: WeekendIncidentsAn
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     const key = `${month}/${year}`;
-    const dia = date.toISOString().slice(0, 10);
+    const dia = `${year}-${month}-${String(date.getDate()).padStart(2, '0')}`;
     if (!monthYearDiasUnicos[key]) monthYearDiasUnicos[key] = new Set();
     monthYearDiasUnicos[key].add(dia);
   });
@@ -96,7 +131,10 @@ export function WeekendIncidentsAnalysis({ data, dateRange }: WeekendIncidentsAn
   const chartData = Object.entries(monthYearCount).map(([monthYear, count]) => ({
     monthYear,
     count,
-    media: monthYearDiasUnicos[monthYear] ? (count / monthYearDiasUnicos[monthYear].size).toFixed(1) : '0',
+    // manter 'media' como número (com 1 casa decimal) para evitar inconsistências no DOM do Recharts
+    media: monthYearDiasUnicos[monthYear]
+      ? Number((count / monthYearDiasUnicos[monthYear].size).toFixed(1))
+      : 0,
     dias: monthYearDiasUnicos[monthYear] ? monthYearDiasUnicos[monthYear].size : 0
   })).sort((a, b) => {
     // Ordenar por ano e mês
@@ -143,7 +181,7 @@ export function WeekendIncidentsAnalysis({ data, dateRange }: WeekendIncidentsAn
   };
 
   // Função para abrir drilldown por turno (usada no gráfico)
-  const handleBarClick = (data: any, index: number, turno: string) => {
+  const handleBarClick = (data: any, _index: number, turno: string) => {
     setDrilldown({ monthYear: data.monthYear, turno });
     setShowDrilldown(true);
   };
@@ -266,6 +304,7 @@ export function WeekendIncidentsAnalysis({ data, dateRange }: WeekendIncidentsAn
           <span className="text-2xl font-bold text-white">{mediaPorDia}</span>
         </div>
       </div>
+      {!showDrilldown && (
       <div className="flex flex-col items-center w-full">
         <div className="bg-[#1E293B] rounded-lg p-6 w-full max-w-3xl">
           <div className="flex items-center gap-3 mb-4">
@@ -276,18 +315,23 @@ export function WeekendIncidentsAnalysis({ data, dateRange }: WeekendIncidentsAn
           {chartData.length > 0 && (
             <div className="mt-8">
               <h4 className="text-white font-bold mb-2">Distribuição Mês a Mês</h4>
+              <WeekendChartErrorBoundary>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="monthYear" stroke="#cbd5e1" onClick={(e) => { if (e && e.activeLabel) handleMonthClick(e.activeLabel); }} />
+                    <XAxis dataKey="monthYear" stroke="#cbd5e1" />
                   <YAxis stroke="#cbd5e1" allowDecimals={false} />
-                  <Tooltip formatter={(value: any, name: any, props: any) => [value, name === 'media' ? 'Média por Dia' : name]} />
-                  <Legend />
-                  <Bar dataKey="count" fill="#3b82f6" name="Chamados">
-                    <LabelList dataKey="count" position="top" fill="#fff" fontSize={14} fontWeight={700} />
-                    <LabelList dataKey="media" position="insideBottom" fill="#fbbf24" fontSize={12} formatter={(v: any, entry: any) => `Média: ${v}`} />
-                  </Bar>
+                    <Tooltip formatter={(value: any, name: any) => [value, name === 'media' ? 'Média por Dia' : name]} />
+                    <Bar 
+                      dataKey="count" 
+                      fill="#3b82f6" 
+                      name="Chamados" 
+                      isAnimationActive={false} 
+                      animationDuration={0}
+                      onClick={(payload: any) => handleMonthClick(payload?.monthYear)}
+                    />
                 </BarChart>
               </ResponsiveContainer>
+              </WeekendChartErrorBoundary>
               <div className="flex flex-wrap justify-center gap-4 mt-2">
                 {chartData.map(({ monthYear, media, dias }) => (
                   <div key={monthYear} className="bg-[#232B3B] rounded px-4 py-2 text-center">
@@ -303,46 +347,31 @@ export function WeekendIncidentsAnalysis({ data, dateRange }: WeekendIncidentsAn
           {stackedChartData.length > 0 && (
             <div className="mt-8">
               <h4 className="text-white font-bold mb-2">Distribuição por Turnos (Mês a Mês) <span className='text-xs text-gray-300 font-normal'>... clique no gráfico para obter detalhes</span></h4>
+              <WeekendChartErrorBoundary>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={stackedChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <XAxis dataKey="monthYear" stroke="#cbd5e1" />
                   <YAxis stroke="#cbd5e1" allowDecimals={false} />
                   <Tooltip content={<CustomTurnoTooltip />} />
-                  <Legend
-                    wrapperStyle={{
-                      paddingTop: 8,
-                      fontSize: 13,
-                      color: '#cbd5e1',
-                      display: 'flex',
-                      justifyContent: 'center',
-                    }}
-                    iconType="circle"
-                    align="center"
-                    verticalAlign="top"
-                  />
-                  <Bar dataKey="Manhã" stackId="a" fill="#ffe066" name="Manhã" onClick={(data, idx) => handleBarClick(data, idx, 'Manhã')} cursor="pointer" />
-                  <Bar dataKey="Tarde" stackId="a" fill="#60a5fa" name="Tarde" onClick={(data, idx) => handleBarClick(data, idx, 'Tarde')} cursor="pointer" />
-                  <Bar dataKey="Noite" stackId="a" fill="#a78bfa" name="Noite" onClick={(data, idx) => handleBarClick(data, idx, 'Noite')} cursor="pointer" />
-                  <Bar dataKey="Madrugada" stackId="a" fill="#94a3b8" name="Madrugada" onClick={(data, idx) => handleBarClick(data, idx, 'Madrugada')} cursor="pointer" />
-                  <Bar dataKey="Desconhecido" stackId="a" fill="#f87171" name="Desconhecido" onClick={(data, idx) => handleBarClick(data, idx, 'Desconhecido')} cursor="pointer" />
+                    <Bar dataKey="Manhã" stackId="a" fill="#ffe066" name="Manhã" onClick={(data, idx) => handleBarClick(data, idx, 'Manhã')} cursor="pointer" isAnimationActive={false} animationDuration={0} />
+                    <Bar dataKey="Tarde" stackId="a" fill="#60a5fa" name="Tarde" onClick={(data, idx) => handleBarClick(data, idx, 'Tarde')} cursor="pointer" isAnimationActive={false} animationDuration={0} />
+                    <Bar dataKey="Noite" stackId="a" fill="#a78bfa" name="Noite" onClick={(data, idx) => handleBarClick(data, idx, 'Noite')} cursor="pointer" isAnimationActive={false} animationDuration={0} />
+                    <Bar dataKey="Madrugada" stackId="a" fill="#94a3b8" name="Madrugada" onClick={(data, idx) => handleBarClick(data, idx, 'Madrugada')} cursor="pointer" isAnimationActive={false} animationDuration={0} />
+                    <Bar dataKey="Desconhecido" stackId="a" fill="#f87171" name="Desconhecido" onClick={(data, idx) => handleBarClick(data, idx, 'Desconhecido')} cursor="pointer" isAnimationActive={false} animationDuration={0} />
                 </BarChart>
               </ResponsiveContainer>
+              </WeekendChartErrorBoundary>
             </div>
           )}
         </div>
       </div>
+      )}
 
       {/* Drilldown Modal */}
       {showDrilldown && drilldown && (
-        /*
-          ===================== INÍCIO DO MODAL DE DRILLDOWN =====================
-          Este modal exibe detalhes dos chamados agrupados por mês/turno.
-          Permite navegação entre turnos, filtro por localidade e visualização detalhada.
-          Para customizar, altere as seções abaixo conforme a necessidade.
-        */
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50" onClick={() => setShowDrilldown(false)}>
           <div
-            className="bg-[#151B2B] rounded-lg p-8 max-w-4xl w-full relative shadow-2xl border border-gray-700"
+            className="bg-[#151B2B] rounded-lg p-8 w-[96vw] md:w-[90vw] max-w-6xl max-h-[90vh] overflow-y-auto relative shadow-2xl border border-gray-700"
             onClick={e => e.stopPropagation()}
           >
             {/* Botão de fechar modal */}
@@ -411,21 +440,18 @@ export function WeekendIncidentsAnalysis({ data, dateRange }: WeekendIncidentsAn
                     );
                   })}
                 </ul>
-                {/* Botão para remover filtro de localidade */}
-                {selectedLocalidade && (
-                  <button onClick={() => setSelectedLocalidade(null)} className="mt-2 px-3 py-1 rounded bg-blue-600 text-white font-bold text-sm">Voltar para todas as localidades</button>
-                )}
+                {/* Botão de limpar localidade removido a pedido */}
               </div>
             </div>
             {/* Lista de detalhes dos chamados filtrados */}
             <div>
               <h3 className="text-lg font-semibold text-white mb-2">Detalhes dos Chamados{selectedLocalidade ? ` - ${selectedLocalidade}` : ''}</h3>
-              <ul className="space-y-1 max-h-60 overflow-y-auto pr-2">
+              <ul key={listKey} className="space-y-1 max-h-60 overflow-y-auto pr-2">
                 {filteredDrilldownIncidents.length === 0 && (
                   <li className="text-gray-400 italic">Nenhum chamado encontrado para este turno/localidade.</li>
                 )}
-                {filteredDrilldownIncidents.map((incident: any) => (
-                  <li key={incident.id || incident.Number} className="flex flex-col text-gray-400 border-b border-gray-700 py-1 relative group">
+                {filteredDrilldownIncidents.map((incident: any, idx: number) => (
+                  <li key={`${incident.Number || 'INC'}-${idx}`} className="flex flex-col text-gray-400 border-b border-gray-700 py-1 relative group">
                     <span className="font-bold text-white flex items-center justify-between">
                       {incident.ShortDescription}
                       {/* Botão para abrir modal de detalhes do chamado */}
@@ -511,3 +537,4 @@ export function WeekendIncidentsAnalysis({ data, dateRange }: WeekendIncidentsAn
     </div>
   );
 } 
+ 

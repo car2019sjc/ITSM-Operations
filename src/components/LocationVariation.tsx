@@ -21,6 +21,7 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { normalizeLocationName } from '../utils/locationUtils';
+import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 import { LocationAIAgent } from './LocationAIAgent';
 
 interface LocationVariationProps {
@@ -72,12 +73,11 @@ export function LocationVariation({ incidents, requests, startDate, endDate }: L
         
         // Check if within SLA based on priority
         const priority = incident.Priority?.toLowerCase() || '';
-        const threshold = 
-          priority.includes('p1') || priority.includes('1') ? 1 :  // 1 hour
-          priority.includes('p2') || priority.includes('2') ? 4 :  // 4 hours
-          priority.includes('p3') || priority.includes('3') ? 36 : // 36 hours
-          priority.includes('p4') || priority.includes('4') ? 72 : // 72 hours
-          36; // default
+        const normalizedPriority = priority.includes('p1') || priority.includes('1') ? 'P1' :
+                                  priority.includes('p2') || priority.includes('2') ? 'P2' :
+                                  priority.includes('p3') || priority.includes('3') ? 'P3' :
+                                  priority.includes('p4') || priority.includes('4') ? 'P4' : 'P3';
+        const threshold = INCIDENT_SLA_THRESHOLDS[normalizedPriority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
         
         try {
           const opened = parseISO(incident.Opened);

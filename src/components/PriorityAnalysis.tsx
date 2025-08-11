@@ -5,6 +5,7 @@ import { parseISO, isWithinInterval, format, differenceInHours } from 'date-fns'
 import { ptBR } from 'date-fns/locale';
 import { IncidentDetails } from './IncidentDetails';
 import { getIncidentState, normalizePriority, isCancelled } from '../utils/incidentUtils';
+import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 
 interface PriorityAnalysisProps {
   incidents: Incident[];
@@ -28,12 +29,7 @@ const CHART_COLORS = {
   'Não definido': '#6B7280'
 };
 
-const SLA_THRESHOLDS = {
-  P1: 1,  // 1 hour
-  P2: 4,  // 4 hours
-  P3: 24, // 24 hours
-  P4: 48  // 48 hours
-};
+
 
 function IncidentModal({ incidents, priority, state, onClose }: IncidentModalProps) {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
@@ -226,7 +222,7 @@ export function PriorityAnalysis({ incidents, onClose, startDate, endDate }: Pri
       }
 
       // Calculate SLA compliance
-      const threshold = SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS] || 24;
+      const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
       try {
         const responseTime = differenceInHours(parseISO(incident.Updated), parseISO(incident.Opened));
         if (responseTime <= threshold) {

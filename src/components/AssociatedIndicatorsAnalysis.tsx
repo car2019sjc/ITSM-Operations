@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -207,11 +207,28 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
 
     return {
       shiftData: Object.values(shiftData) as ShiftDataItem[],
-      functionData: Object.entries(functionData).map(([name, value]) => ({ name, value })),
-      groupData: Object.entries(groupData).map(([name, value]) => ({ name, value })),
-      stringData: Object.entries(stringData).map(([name, value]) => ({ name, value }))
+      functionData: Object.entries(functionData).map(([name, value]) => ({ name, value: Number(value) })),
+      groupData: Object.entries(groupData).map(([name, value]) => ({ name, value: Number(value) })),
+      stringData: Object.entries(stringData).map(([name, value]) => ({ name, value: Number(value) }))
     };
   }, [data, dateRange]);
+
+  // Ordenação estável para não mutar os arrays usados por múltiplos componentes
+  const functionDataSorted = useMemo(() => {
+    return [...processedData.functionData].sort((a: any, b: any) => Number(b.value) - Number(a.value));
+  }, [processedData.functionData]);
+
+  // Tooltip específico para o gráfico de funções (evita 100% e valores incorretos)
+  const FunctionBarTooltip = ({ active, payload }: any) => {
+    if (!active || !payload || !payload.length) return null;
+    const point = payload[0]?.payload;
+    return (
+      <div style={{ background: '#23263a', color: '#fff', borderRadius: 8, padding: 12, boxShadow: '0 2px 8px #0008', border: '1px solid #333', minWidth: 160, fontSize: 13 }}>
+        <div style={{ fontWeight: 700, color: '#93c5fd', marginBottom: 6 }}>{String(point?.name)}</div>
+        <div>Chamados: <b>{Number(point?.value) || 0}</b></div>
+      </div>
+    );
+  };
 
   // Função para filtrar dados por função selecionada
   const filteredByFunction = selectedFunction
@@ -311,13 +328,25 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
       .slice(0, 5);
   }, [processedData.stringData]);
 
+  // Tooltip específico para o gráfico de strings
+  const StringBarTooltip = ({ active, payload }: any) => {
+    if (!active || !payload || !payload.length) return null;
+    const point = payload[0]?.payload;
+    return (
+      <div style={{ background: '#23263a', color: '#fff', borderRadius: 8, padding: 12, boxShadow: '0 2px 8px #0008', border: '1px solid #333', minWidth: 160, fontSize: 13 }}>
+        <div style={{ fontWeight: 700, color: '#fca5a5', marginBottom: 6 }}>{String(point?.name)}</div>
+        <div>Chamados: <b>{Number(point?.value) || 0}</b></div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-8 p-6 bg-[#151B2B] rounded-lg">
       <h2 className="text-2xl font-bold text-white mb-6">Análise de Indicadores Associados</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/*
-          ===================== DOCUMENTAÇÃO DO BLOCO =====================
+          ===================== DOCUMENTAÃ‡ÃƒO DO BLOCO =====================
           Bloco: Distribuição por Turno
           - Exibe um gráfico de barras com a quantidade de chamados por turno (Manhã, Tarde, Noite).
           - Cada barra representa um turno, com cor distinta (mantendo o padrão do app).
@@ -371,14 +400,14 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
           <div className="mb-2 text-sm text-blue-300 font-medium">Clique na barra para Análise por IA</div>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={processedData.functionData}>
+              <BarChart data={functionDataSorted}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" tick={{ fill: '#fff', fontSize: 12 }} angle={-35} textAnchor="end" height={60} />
                 <YAxis />
-                <Tooltip content={<CustomDarkPieTooltip />} />
+                <Tooltip content={<FunctionBarTooltip />} />
                 <Legend />
                 <Bar dataKey="value" fill="#8884d8" cursor="pointer" onClick={(_, index) => {
-                  const item = processedData.functionData[index];
+                  const item = functionDataSorted[index];
                   if (item && item.name) {
                     setSelectedFunction(item.name);
                   }
@@ -390,9 +419,7 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
           <div className="mt-4">
             <h4 className="text-white font-semibold mb-2 text-sm">Lista de Funções e Quantidade de Chamados</h4>
             <ul className="text-gray-300 text-sm space-y-1 max-h-40 overflow-y-auto pr-2">
-              {processedData.functionData
-                .sort((a, b) => Number(b.value) - Number(a.value))
-                .map((item, idx) => (
+              {functionDataSorted.map((item, idx) => (
                   <li key={item.name + idx} className="flex justify-between border-b border-gray-700 pb-1">
                     <span>{String(item.name)}</span>
                     <span className="font-bold text-indigo-400">{String(item.value)}</span>
@@ -493,7 +520,7 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
 
         {/* Gráfico de Strings */}
         {/*
-          ===================== DOCUMENTAÇÃO DO BLOCO =====================
+          ===================== DOCUMENTAÃ‡ÃƒO DO BLOCO =====================
           Bloco: Distribuição por String
           - Exibe um gráfico de barras com as 5 strings mais recorrentes nos chamados.
           - Mensagem orienta o usuário a clicar na barra para acionar a análise por IA.
@@ -517,7 +544,7 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} height={60} tick={{ fill: '#fff', fontSize: 12 }} />
                 <YAxis />
-                <Tooltip content={<CustomDarkPieTooltip />} />
+                <Tooltip content={<StringBarTooltip />} />
                 <Legend formatter={() => null} />
                 <Bar dataKey="value" fill="#ef4444" cursor="pointer" onClick={(_, index) => {
                   const item = top5StringData[index];
@@ -563,4 +590,4 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
       )}
     </div>
   );
-} 
+ }

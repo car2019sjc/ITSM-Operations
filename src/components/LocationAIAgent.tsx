@@ -22,6 +22,7 @@ import {
 import { ptBR } from 'date-fns/locale';
 import { normalizePriority } from '../utils/incidentUtils';
 import { normalizeRequestPriority } from '../types/request';
+import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 
 interface LocationAIAgentProps {
   location: string;
@@ -114,12 +115,7 @@ export function LocationAIAgent({ location, incidents, requests, startDate, endD
             totalForSLA++;
             
             // Check if within SLA based on priority
-            const threshold = 
-              priority === 'P1' ? 1 :  // 1 hour
-              priority === 'P2' ? 4 :  // 4 hours
-              priority === 'P3' ? 36 : // 36 hours
-              priority === 'P4' ? 72 : // 72 hours
-              36; // default
+            const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 12;
             
             try {
               const opened = parseISO(incident.Opened);

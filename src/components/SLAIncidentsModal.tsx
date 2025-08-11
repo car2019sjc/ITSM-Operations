@@ -5,6 +5,7 @@ import { parseISO, format, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { IncidentDetails } from './IncidentDetails';
 import { normalizePriority, getIncidentState } from '../utils/incidentUtils';
+import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 
 interface SLAIncidentsModalProps {
   incidents: Incident[];
@@ -19,12 +20,7 @@ const CHART_COLORS = {
   'Não definido': '#6B7280'
 };
 
-const SLA_THRESHOLDS = {
-  P1: 1,   // 1 hour
-  P2: 4,   // 4 hours
-  P3: 36,  // 36 hours
-  P4: 72   // 72 hours
-};
+
 
 export function SLAIncidentsModal({ incidents, onClose }: SLAIncidentsModalProps) {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
@@ -42,7 +38,7 @@ export function SLAIncidentsModal({ incidents, onClose }: SLAIncidentsModalProps
       const opened = parseISO(incident.Opened);
       const lastUpdate = incident.Updated ? parseISO(incident.Updated) : opened;
       const priority = normalizePriority(incident.Priority);
-      const threshold = SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS] || 36;
+      const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
       const totalHours = differenceInHours(lastUpdate, opened);
       
       if (totalHours <= threshold) {

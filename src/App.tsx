@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { DashboardHeader } from './components/DashboardHeader';
+import { Footer } from './components/Footer';
 import { SearchBar } from './components/SearchBar';
 import { StatsCard } from './components/StatsCard';
 import { CategoryCard } from './components/CategoryCard';
@@ -19,6 +20,7 @@ import { CriticalIncidentsModal } from './components/CriticalIncidentsModal';
 import { PendingIncidentsModal } from './components/PendingIncidentsModal';
 import { OnHoldIncidentsModal } from './components/OnHoldIncidentsModal';
 import { OutOfRuleIncidentsModal } from './components/OutOfRuleIncidentsModal';
+import { BacklogModal } from './components/BacklogModal';
 import { SupportQueuesAnalysis } from './components/SupportQueuesAnalysis';
 import { CategoryHistoryAnalysis } from './components/CategoryHistoryAnalysis';
 import { AIAnalyst } from './components/AIAnalyst';
@@ -103,18 +105,12 @@ import { CalendarSelector } from './components/CalendarSelector';
  * ===========================================================================
  */
 
-const SLA_THRESHOLDS = {
-  P1: 1,   // 1 hour
-  P2: 4,   // 4 hours
-  P3: 36,  // 36 hours
-  P4: 72   // 72 hours
-};
+
 
 const AUTH_KEY = 'app_auth_state';
 
 function App() {
-  // Log inicial para saber se o App está sendo montado
-  console.log('[APP] Iniciando montagem do App...');
+  // Log inicial movido para useEffect para evitar spam
 
   const [showRequestDashboard, setShowRequestDashboard] = useState(false);
   const [showExecutiveDashboard, setShowExecutiveDashboard] = useState(false);
@@ -145,6 +141,7 @@ function App() {
   const [showPendingIncidents, setShowPendingIncidents] = useState(false);
   const [showOnHoldIncidents, setShowOnHoldIncidents] = useState(false);
   const [showOutOfRuleIncidents, setShowOutOfRuleIncidents] = useState(false);
+  const [showBacklog, setShowBacklog] = useState(false);
   const [showCategoryHistoryAnalysis, setShowCategoryHistoryAnalysis] = useState(false);
   const [showAIAnalyst, setShowAIAnalyst] = useState(false);
   const [showShiftHistory, setShowShiftHistory] = useState(false);
@@ -171,6 +168,11 @@ function App() {
   const [showMainCalendar, setShowMainCalendar] = useState(false);
   const calendarButtonRef = useRef<HTMLButtonElement>(null);
   const calendarPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Log de montagem inicial (só executa uma vez)
+  React.useEffect(() => {
+    console.log('[APP] App montado com sucesso');
+  }, []);
 
   // Log de autenticação
   React.useEffect(() => {
@@ -678,18 +680,7 @@ function App() {
       setShowFileSelector(false);
     }
 
-    // LOG DETALHADO: incidentes com data acima de 2025-06-30
-    filteredData.forEach(i => {
-      const d = new Date(i.Opened || '');
-      if (!isNaN(d.getTime()) && d > new Date('2025-06-30T23:59:59')) {
-        console.warn('[DEBUG INCIDENTE FUTURO]', {
-          Number: i.Number,
-          OpenedOriginal: i.Opened,
-          UpdatedOriginal: i.Updated,
-          State: i.State
-        });
-      }
-    });
+    // Debug logs removidos para evitar spam no console
   };
 
   const handleRequestsLoaded = (data: Request[]) => {
@@ -753,9 +744,7 @@ function App() {
     return <RequestDashboard onBack={() => setShowRequestDashboard(false)} requests={requests} />;
   }
 
-  console.log("Current incidents count:", incidents.length);
-  console.log("Current requests count:", requests.length);
-  console.log("Filtered incidents count:", filteredIncidents.length);
+  // Logs de contagem removidos para evitar spam no console
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-white">
@@ -836,16 +825,7 @@ function App() {
               />
             </div>
 
-            <div className="flex justify-between mb-4">
-              <button
-                onClick={() => setShowRequestDashboard(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
-              >
-                <FileText className="h-5 w-5" />
-                <span>Ir para Dashboard de Requests</span>
-                <ArrowLeft className="h-5 w-5 rotate-180" />
-              </button>
-            </div>
+            {/* Botões principais movidos para acima dos Indicadores Operacionais */}
 
             {/* Monthly Location Summary */}
             <div className="flex items-center justify-between mb-4">
@@ -875,6 +855,32 @@ function App() {
                 onClose={() => setShowHistoricalData(false)}
               />
             )}
+
+            {/* Ações rápidas (claras e separadas do conteúdo acima) */}
+            <div className="mt-6 mb-2 text-sm text-gray-300">Ações rápidas</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-gray-400 mb-1">Navegação</div>
+                <button
+                  onClick={() => setShowRequestDashboard(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm"
+                >
+                  <FileText className="h-5 w-5" />
+                  <span>Ir para Dashboard de Requests</span>
+                  <ArrowLeft className="h-5 w-5 rotate-180" />
+                </button>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wide text-gray-400 mb-1">Análises Backlog</div>
+                <button
+                  onClick={() => setShowBacklog(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-sm"
+                >
+                  <BarChart3 className="h-5 w-5" />
+                  <span>Backlog</span>
+                </button>
+              </div>
+            </div>
 
             <SearchBar
               value={searchQuery}
@@ -1115,18 +1121,7 @@ function App() {
                   console.warn('Incidentes com data acima de 2025-06-30:', incidentsInvalid.map(i => ({ Number: i.Number, Opened: i.Opened })));
                 }
 
-                // LOG DETALHADO: incidentes com data acima de 2025-06-30
-                filteredIncidentsMax.forEach(i => {
-                  const d = new Date(i.Opened || '');
-                  if (!isNaN(d.getTime()) && d > maxAllowedDate) {
-                    console.warn('[DEBUG INCIDENTE FUTURO]', {
-                      Number: i.Number,
-                      OpenedOriginal: i.Opened,
-                      UpdatedOriginal: i.Updated,
-                      State: i.State
-                    });
-                  }
-                });
+                // Debug logs removidos para evitar spam no console
 
                 return (
               <ComparativeVolumetry
@@ -1179,6 +1174,13 @@ function App() {
               />
             )}
 
+            {showBacklog && (
+              <BacklogModal
+                incidents={filteredIncidents}
+                onClose={() => setShowBacklog(false)}
+              />
+            )}
+
             {selectedIncident && (
               <IncidentDetails
                 incident={selectedIncident}
@@ -1227,6 +1229,8 @@ function App() {
       {showMonthlyLocationSummary && (
         <MonthlyLocationSummaryModal onClose={() => setShowMonthlyLocationSummary(false)} />
       )}
+      
+      <Footer />
     </div>
   );
 }

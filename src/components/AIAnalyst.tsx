@@ -23,6 +23,7 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { IncidentDetails } from './IncidentDetails';
 import { getShiftFromTime, getShiftName } from '../utils/shiftUtils';
+import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 import { SHIFTS } from '../types/analyst';
 
 // Interfaces para tipagem dos dados
@@ -109,13 +110,7 @@ const openai = new OpenAI({
 // Limite máximo de incidentes para análise
 const MAX_INCIDENTS = 50;
 
-// SLA thresholds
-const SLA_THRESHOLDS = {
-  P1: 1,   // 1 hour
-  P2: 4,   // 4 hours
-  P3: 36,  // 36 hours
-  P4: 72   // 72 hours
-};
+
 
 // Template padrão para a análise
 const ANALYSIS_TEMPLATE = {

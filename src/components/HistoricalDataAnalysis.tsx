@@ -367,10 +367,10 @@ export function HistoricalDataAnalysis({ incidents, requests, onClose }: Histori
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Bar dataKey="P1" name="P1" fill={CHART_COLORS.P1} stackId="incidents" />
-                  <Bar dataKey="P2" name="P2" fill={CHART_COLORS.P2} stackId="incidents" />
-                  <Bar dataKey="P3" name="P3" fill={CHART_COLORS.P3} stackId="incidents" />
-                  <Bar dataKey="P4" name="P4" fill={CHART_COLORS.P4} stackId="incidents" />
+                  <Bar dataKey="P1" name="Prioridade P1" fill={CHART_COLORS.P1} stackId="incidents" />
+                  <Bar dataKey="P2" name="Prioridade P2" fill={CHART_COLORS.P2} stackId="incidents" />
+                  <Bar dataKey="P3" name="Prioridade P3" fill={CHART_COLORS.P3} stackId="incidents" />
+                  <Bar dataKey="P4" name="Prioridade P4" fill={CHART_COLORS.P4} stackId="incidents" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

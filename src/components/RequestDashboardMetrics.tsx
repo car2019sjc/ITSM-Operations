@@ -19,9 +19,11 @@ import {
   AlertTriangle, 
   Users, 
   Calendar,
-  BarChart2
+  BarChart2,
+  X
 } from 'lucide-react';
 import { Request, normalizeRequestPriority, normalizeRequestStatus, REQUEST_PRIORITIES, REQUEST_STATUSES } from '../types/request';
+import { REQUEST_SLA_THRESHOLDS } from '../constants';
 import { parseISO, format, differenceInDays, isAfter, isBefore, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -29,6 +31,7 @@ interface RequestDashboardMetricsProps {
   requests: Request[];
   startDate?: string;
   endDate?: string;
+  onClose?: () => void;
 }
 
 interface ChartData {
@@ -37,13 +40,7 @@ interface ChartData {
   color: string;
 }
 
-interface CategoryData {
-  name: string;
-  value: number;
-  HIGH: number;
-  MEDIUM: number;
-  LOW: number;
-}
+
 
 interface RequesterData {
   name: string;
@@ -75,14 +72,9 @@ const CHART_COLORS = {
   CANCELLED: '#6b7280'
 } as const;
 
-// SLA thresholds for requests (in days)
-const REQUEST_SLA_THRESHOLDS: Record<string, number> = {
-  HIGH: 3,    // 3 days
-  MEDIUM: 5,  // 5 days
-  LOW: 7      // 7 days
-};
 
-export function RequestDashboardMetrics({ requests, startDate, endDate }: RequestDashboardMetricsProps) {
+
+export function RequestDashboardMetrics({ requests, startDate, endDate, onClose }: RequestDashboardMetricsProps) {
   // Filter requests by date range
   const filteredRequests = useMemo(() => {
     if (!startDate || !endDate) return requests;
@@ -191,32 +183,7 @@ export function RequestDashboardMetrics({ requests, startDate, endDate }: Reques
     { name: REQUEST_PRIORITIES.LOW, value: metrics.lowPriority, color: CHART_COLORS.LOW }
   ], [metrics]);
 
-  // Category distribution
-  const categoryData = useMemo(() => {
-    const categories = filteredRequests.reduce((acc, request) => {
-      const category = request.RequestItem || 'Não categorizado';
-      
-      if (!acc[category]) {
-        acc[category] = {
-          name: category,
-          value: 0,
-          HIGH: 0,
-          MEDIUM: 0,
-          LOW: 0
-        };
-      }
-      
-      acc[category].value++;
-      const priority = normalizeRequestPriority(request.Priority);
-      acc[category][priority]++;
-      
-      return acc;
-    }, {} as Record<string, CategoryData>);
-    
-    return Object.values(categories)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-  }, [filteredRequests]);
+
 
   // Custom tooltip for charts
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -235,7 +202,21 @@ export function RequestDashboardMetrics({ requests, startDate, endDate }: Reques
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="space-y-6">
+      {/* Header with close button */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-white">Métricas do Dashboard</h2>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-[#1C2333] rounded-lg transition-colors"
+          >
+            <X className="h-5 w-5 text-gray-400 hover:text-white" />
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Status Overview */}
       <div className="bg-[#1C2333] p-4 rounded-lg">
         <h3 className="text-lg font-medium text-white mb-4">Visão Geral por Status</h3>
@@ -326,40 +307,7 @@ export function RequestDashboardMetrics({ requests, startDate, endDate }: Reques
         </div>
       </div>
 
-      {/* Top Categories */}
-      <div className="bg-[#1C2333] p-4 rounded-lg col-span-2">
-        <h3 className="text-lg font-medium text-white mb-4">Top 5 Categorias</h3>
-        <div className="space-y-4">
-          {categoryData.map(category => (
-            <div
-              key={category.name}
-              className="bg-[#151B2B] p-4 rounded-lg"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <BarChart2 className="h-5 w-5 text-blue-400" />
-                  <h4 className="text-white font-medium">{category.name}</h4>
-                </div>
-                <span className="text-gray-400">{category.value} solicitações</span>
-              </div>
-              <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                {(['HIGH', 'MEDIUM', 'LOW'] as const).map(priority => {
-                  const width = (category[priority] / category.value) * 100;
-                  return (
-                    <div
-                      key={priority}
-                      className="h-full float-left"
-                      style={{
-                        width: `${width}%`,
-                        backgroundColor: CHART_COLORS[priority]
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
+
       </div>
     </div>
   );

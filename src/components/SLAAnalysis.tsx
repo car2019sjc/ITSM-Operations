@@ -5,7 +5,7 @@
   Este componente é responsável pela análise e apresentação dos SLAs 
   (Service Level Agreements) exclusivamente para incidentes.
   
-  Os parâmetros de SLA definidos neste arquivo (SLA_THRESHOLDS) 
+  Os parâmetros de SLA definidos neste arquivo (INCIDENT_SLA_THRESHOLDS) 
   são utilizados apenas para os chamados do tipo incidente e não afetam 
   requests ou outros módulos do sistema.
   
@@ -16,7 +16,7 @@
     - P4: 12 horas
   
   Para alterar os limites de SLA de incidentes, edite o objeto 
-  SLA_THRESHOLDS abaixo.
+  INCIDENT_SLA_THRESHOLDS abaixo.
   =====================================================================
 */
 import React, { useMemo, useState, useEffect } from 'react';
@@ -40,6 +40,7 @@ import { ptBR } from 'date-fns/locale';
 import { IncidentDetails } from './IncidentDetails';
 import { normalizePriority, getIncidentState } from '../utils/incidentUtils';
 import { OutOfSLAIncidents } from './OutOfSLAIncidents';
+import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 
 interface SLAAnalysisProps {
   incidents: Incident[];
@@ -65,12 +66,7 @@ const CHART_COLORS = {
   outsideSLA: '#EF4444'  // Vermelho
 };
 
-const SLA_THRESHOLDS = {
-  P1: 1,   // 1 hora
-  P2: 3,  // 3 horas
-  P3: 8,  // 8 horas
-  P4: 12  // 12 horas
-};
+
 
 function IncidentModal({ incidents, priority, compliant, onClose }: IncidentModalProps) {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
@@ -98,7 +94,7 @@ function IncidentModal({ incidents, priority, compliant, onClose }: IncidentModa
       if (!lastUpdate || isNaN(lastUpdate.getTime())) return 'Data de atualização inválida';
       
       const priority = normalizePriority(incident.Priority);
-      const threshold = SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS] || 36;
+      const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
       const totalHours = differenceInHours(lastUpdate, opened);
       
       if (isNaN(totalHours)) return 'Tempo não calculado';
@@ -226,6 +222,32 @@ export function SLAAnalysis({ incidents, onClose, startDate, endDate }: SLAAnaly
   const [showOutOfSLA, setShowOutOfSLA] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
+  // Garante que o rótulo exibido para prioridade seja sempre 'P1', 'P2', 'P3', 'P4'
+  const formatPriorityLabel = (raw: string): string => {
+    if (!raw) return raw;
+    const sanitized = raw
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .replace(/[\.:;-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+    const match = sanitized.match(/([1-4])/);
+    if (match) return `P${match[1]}`;
+    if (sanitized.startsWith('P')) return sanitized.replace(/\s|\./g, '');
+    return raw;
+  };
+
+  // Para exibição: 'Prioridade 1/2/3/4' ou 'Não definido'
+  const formatPriorityTitle = (raw: string): string => {
+    const lbl = formatPriorityLabel(raw);
+    if (lbl === 'P1') return 'Prioridade 1';
+    if (lbl === 'P2') return 'Prioridade 2';
+    if (lbl === 'P3') return 'Prioridade 3';
+    if (lbl === 'P4') return 'Prioridade 4';
+    return lbl; // 'Não definido' ou outro
+  };
+
   const slaData = useMemo(() => {
     console.log('[SLA LOG] Iniciando cálculo do SLA');
     console.log('[SLA LOG] Incidents recebidos:', incidents.length);
@@ -265,7 +287,7 @@ export function SLAAnalysis({ incidents, onClose, startDate, endDate }: SLAAnaly
     filteredIncidents.forEach(incident => {
       const priority = normalizePriority(incident.Priority) || 'Não definido';
       if (priority === 'Não definido') semPrioridade++;
-      const threshold = SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS] || 36;
+      const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
       const opened = parseDate(incident.Opened || '');
       const lastUpdate = parseDate(incident.Updated || '');
       if (!opened || !lastUpdate) { semData++; return; }
@@ -290,7 +312,7 @@ export function SLAAnalysis({ incidents, onClose, startDate, endDate }: SLAAnaly
   const slaPercentage = totalIncidents > 0 ? (totalWithinSLA / totalIncidents) * 100 : 0;
 
   const handleSLAClick = (priority: string, compliant: boolean) => {
-    const threshold = SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS] || 36;
+    const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
     let logCount = 0;
     const filteredIncidents = incidents.filter(incident => {
       const normalizedPriority = normalizePriority(incident.Priority);
@@ -362,7 +384,7 @@ export function SLAAnalysis({ incidents, onClose, startDate, endDate }: SLAAnaly
       const opened = parseDate(incident.Opened || '');
       const lastUpdate = parseDate(incident.Updated || '');
       if (!opened || !lastUpdate) return false;
-      const threshold = SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS] || 36;
+      const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
       const responseTime = differenceInHours(lastUpdate, opened);
       return responseTime > threshold;
     });
@@ -405,7 +427,7 @@ export function SLAAnalysis({ incidents, onClose, startDate, endDate }: SLAAnaly
               return (
                 <div key={priority} className="mb-4">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-gray-400 font-medium">{priority}</span>
+                    <span className="text-gray-400 font-medium">{formatPriorityTitle(priority)}</span>
                     <span className="text-white font-semibold">{percentage.toFixed(1)}%</span>
                   </div>
                   <div className="relative h-3 bg-gray-700 rounded-full overflow-hidden">
@@ -442,10 +464,10 @@ export function SLAAnalysis({ incidents, onClose, startDate, endDate }: SLAAnaly
               return (
                 <div key={priority} className="rounded-lg p-6 bg-[#181F32] border border-gray-700 flex flex-col gap-2">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-${priority === 'P2' ? 'blue' : priority === 'P3' ? 'yellow' : 'green'}-400 font-bold text-lg`}>{priority}</span>
+                    <span className={`text-${priority === 'P2' ? 'blue' : priority === 'P3' ? 'yellow' : 'green'}-400 font-bold text-lg`}>{formatPriorityTitle(priority)}</span>
                     <span className="ml-auto text-2xl font-bold" style={{ color: percentColor }}>{percentage.toFixed(1)}%</span>
                   </div>
-                  <div className="text-gray-400 text-sm mb-1">Meta de atendimento: {SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS]} horas</div>
+                  <div className="text-gray-400 text-sm mb-1">Meta de atendimento: {INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS]} horas</div>
                   <div className="text-gray-400 text-sm mb-1">Total de chamados: {data.total}</div>
                   <div className="flex flex-col gap-1 text-sm">
                     <span className="text-green-400">{noPrazo} no prazo</span>

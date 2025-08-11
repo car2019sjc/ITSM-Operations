@@ -7,7 +7,9 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  Legend
+  Legend,
+  Cell,
+  LabelList
 } from 'recharts';
 import { X, AlertTriangle, ExternalLink, Filter, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
 import type { Incident } from '../types/incident';
@@ -118,6 +120,8 @@ export function UserAnalysis({ incidents, onClose, startDate, endDate }: UserAna
       const priority = normalizePriority(incident.Priority) as PriorityKey;
       const state = getIncidentState(incident.State) as StateKey;
       
+
+      
       if (!data[caller]) {
         data[caller] = {
           name: caller,
@@ -152,13 +156,17 @@ export function UserAnalysis({ incidents, onClose, startDate, endDate }: UserAna
 
     const totalIncidents = Object.values(data).reduce((sum, user) => sum + user.total, 0);
 
-    return Object.values(data)
+    const result = Object.values(data)
       .map(user => ({
         ...user,
         percentage: ((user.total / totalIncidents) * 100).toFixed(1)
       }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 20);
+      
+
+    
+    return result;
   }, [incidents, startDate, endDate]);
 
   const handleUserClick = (user: string) => {
@@ -174,7 +182,7 @@ export function UserAnalysis({ incidents, onClose, startDate, endDate }: UserAna
     : [];
 
   const chartData = useMemo(() => {
-    return userData.slice(0, 5).map(user => ({
+    const data = userData.slice(0, 5).map(user => ({
       name: user.name,
       P1: user.P1,
       P2: user.P2,
@@ -183,6 +191,10 @@ export function UserAnalysis({ incidents, onClose, startDate, endDate }: UserAna
       'Não definido': user['Não definido'],
       total: user.total
     }));
+    
+
+    
+    return data;
   }, [userData]);
 
   return (
@@ -209,7 +221,7 @@ export function UserAnalysis({ incidents, onClose, startDate, endDate }: UserAna
               data={chartData}
               margin={{
                 top: 20,
-                right: 30,
+                right: 50,
                 left: 20,
                 bottom: 5,
               }}
@@ -224,13 +236,49 @@ export function UserAnalysis({ incidents, onClose, startDate, endDate }: UserAna
                   borderRadius: '0.5rem',
                   color: '#fff'
                 }}
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="bg-[#1C2333] p-3 rounded-lg border border-gray-600">
+                        <p className="text-white font-medium mb-2">{`${label}`}</p>
+                        {payload.map((entry, index) => (
+                          <p key={index} style={{ color: entry.color }}>
+                            {`${entry.dataKey}: ${entry.value}`}
+                          </p>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
-              <Legend />
-              <Bar dataKey="P1" name="P1" stackId="a" fill={CHART_COLORS.P1} />
-              <Bar dataKey="P2" name="P2" stackId="a" fill={CHART_COLORS.P2} />
-              <Bar dataKey="P3" name="P3" stackId="a" fill={CHART_COLORS.P3} />
-              <Bar dataKey="P4" name="P4" stackId="a" fill={CHART_COLORS.P4} />
-              <Bar dataKey="Não definido" name="Não definido" stackId="a" fill={CHART_COLORS['Não definido']} />
+              <Legend 
+                wrapperStyle={{ paddingTop: '20px' }}
+                iconType="rect"
+              />
+              <Bar dataKey="P1" name="Prioridade P1" stackId="a" fill={CHART_COLORS.P1} />
+              <Bar dataKey="P2" name="Prioridade P2" stackId="a" fill={CHART_COLORS.P2} />
+              <Bar dataKey="P3" name="Prioridade P3" stackId="a" fill={CHART_COLORS.P3} />
+              <Bar dataKey="P4" name="Prioridade P4" stackId="a" fill={CHART_COLORS.P4} />
+              <Bar 
+                dataKey="Não definido" 
+                name="Não definido" 
+                stackId="a" 
+                fill={CHART_COLORS['Não definido']}
+              >
+                {/* Label do total no topo da barra empilhada */}
+                <LabelList 
+                  dataKey="total"
+                  position="top"
+                  style={{
+                    fill: '#fff',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    textAnchor: 'middle'
+                  }}
+                  offset={5}
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -242,10 +290,11 @@ export function UserAnalysis({ incidents, onClose, startDate, endDate }: UserAna
           <thead className="bg-[#151B2B]">
             <tr>
               <th className="px-6 py-3 text-left text-sm font-medium text-gray-400">Usuário</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">P1</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">P2</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">P3</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">P4</th>
+              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">Prioridade P1</th>
+              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">Prioridade P2</th>
+              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">Prioridade P3</th>
+              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">Prioridade P4</th>
+              <th className="px-6 py-3 text-center text-sm font-medium text-gray-400">Não definido</th>
               <th className="px-6 py-3 text-right text-sm font-medium text-gray-400">Total</th>
               <th className="px-6 py-3 text-right text-sm font-medium text-gray-400">%</th>
             </tr>
@@ -283,6 +332,9 @@ export function UserAnalysis({ incidents, onClose, startDate, endDate }: UserAna
                 </td>
                 <td className="px-6 py-4 text-sm text-center">
                   <span style={{ color: CHART_COLORS.P4 }}>{user.P4}</span>
+                </td>
+                <td className="px-6 py-4 text-sm text-center">
+                  <span style={{ color: CHART_COLORS['Não definido'] }}>{user['Não definido']}</span>
                 </td>
                 <td className="px-6 py-4 text-sm text-right text-white">{user.total}</td>
                 <td className="px-6 py-4 text-sm text-right text-white">{user.percentage}%</td>

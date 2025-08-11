@@ -272,7 +272,16 @@ export const TopIncidentsByStringAssociado: React.FC<Props> = ({ incidents, onBa
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={subcategoriasData} barCategoryGap={subcategoriasData.length === 1 ? '40%' : '20%'} barGap={20}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} interval={0} />
+              <XAxis 
+                dataKey="name" 
+                angle={-45} 
+                textAnchor="end" 
+                height={100} 
+                interval={0} 
+                tick={{ fill: '#ffffff' }}
+                axisLine={{ stroke: '#ffffff' }}
+                tickLine={{ stroke: '#ffffff' }}
+              />
               <YAxis />
               <Tooltip wrapperStyle={{ zIndex: 1000 }} formatter={(value: number, name: string) => [`${value} chamados`, name]} />
               <Legend />

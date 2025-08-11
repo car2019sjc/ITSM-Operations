@@ -4,13 +4,9 @@ import { Incident } from '../types/incident';
 import { normalizePriority } from '../utils/incidentUtils';
 import { format, differenceInHours, parseISO, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 
-const SLA_THRESHOLDS = {
-  P1: 1,   // 1 hora
-  P2: 4,   // 4 horas
-  P3: 36,  // 36 horas
-  P4: 72   // 72 horas
-};
+
 
 const PRIORITY_COLORS = {
   P1: 'bg-red-500/20 text-red-500',
@@ -106,7 +102,7 @@ export function OutOfSLAIncidents({ incidents, priorityLabel, onClose }: OutOfSL
           return false;
         }
 
-        const threshold = SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS] || 36;
+        const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
         const responseTime = differenceInHours(lastUpdate, opened);
         const isOutOfSLA = responseTime > threshold;
 
@@ -166,7 +162,7 @@ export function OutOfSLAIncidents({ incidents, priorityLabel, onClose }: OutOfSL
                     return null;
                   }
 
-                  const threshold = SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS] || 36;
+                  const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
                   const responseTime = differenceInHours(lastUpdate, opened);
                   const tempoFora = responseTime - threshold;
 
@@ -287,7 +283,7 @@ export function OutOfSLAIncidents({ incidents, priorityLabel, onClose }: OutOfSL
                         <Info className="h-4 w-4" />
                         {(() => {
                           const priority = normalizePriority(selectedIncident.Priority || '');
-                          const threshold = SLA_THRESHOLDS[priority as keyof typeof SLA_THRESHOLDS] || 36;
+                          const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
                           const opened = parseDate(selectedIncident.Opened || '');
                           const lastUpdate = parseDate(selectedIncident.Updated || '');
                           const responseTime = (opened && lastUpdate) ? differenceInHours(lastUpdate, opened) : 0;

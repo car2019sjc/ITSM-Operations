@@ -44,9 +44,20 @@ export function ComparativeVolumetry({ incidents, requests, startDate, endDate, 
           return false;
         }
       }).length;
-      return { month: monthLabel, incidentsTotal, requestsTotal };
+
+      
+      return { 
+        month: monthLabel, 
+        incidentsTotal: incidentsTotal === 0 ? 0.5 : incidentsTotal,
+        requestsTotal: requestsTotal === 0 ? 0.5 : requestsTotal,
+        // Valores reais para tooltip
+        actualIncidents: incidentsTotal,
+        actualRequests: requestsTotal
+      };
     });
   }, [incidents, requests, startDate, endDate]);
+
+
 
   return (
     <div className="bg-[#151B2B] p-6 rounded-lg space-y-6 relative">
@@ -63,14 +74,64 @@ export function ComparativeVolumetry({ incidents, requests, startDate, endDate, 
           <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.5} />
             <XAxis dataKey="month" tick={{ fill: '#9CA3AF', fontSize: 12 }} interval={0} angle={-45} textAnchor="end" height={60} />
-            <YAxis tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-            <Tooltip />
+            <YAxis 
+              tick={{ fill: '#9CA3AF', fontSize: 12 }} 
+              domain={[0, 'dataMax + 50']}
+              allowDataOverflow={false}
+              type="number"
+            />
+            <Tooltip 
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  return (
+                    <div className="bg-[#1C2333] p-3 rounded-lg border border-gray-600">
+                      <p className="text-white font-medium mb-2">{`${label}`}</p>
+                      {payload.map((entry, index) => {
+                        const actualValue = entry.dataKey === 'incidentsTotal' 
+                          ? entry.payload.actualIncidents 
+                          : entry.payload.actualRequests;
+                        return (
+                          <p key={index} style={{ color: entry.color }}>
+                            {`${entry.name}: ${actualValue}`}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
             <Legend />
-            <Bar dataKey="incidentsTotal" name="Incidentes" fill={CHART_COLORS.incidents} radius={[4, 4, 0, 0]}>
-              <LabelList dataKey="incidentsTotal" position="top" fill="#9CA3AF" fontSize={12} />
+            <Bar 
+              dataKey="incidentsTotal" 
+              name="Incidentes" 
+              fill={CHART_COLORS.incidents} 
+              radius={[4, 4, 0, 0]}
+              minPointSize={10}
+            >
+              <LabelList 
+                dataKey="actualIncidents" 
+                position="top" 
+                fill="#9CA3AF" 
+                fontSize={12}
+                formatter={(value: number) => value > 0 ? value : ''}
+              />
             </Bar>
-            <Bar dataKey="requestsTotal" name="Requisições" fill={CHART_COLORS.requests} radius={[4, 4, 0, 0]}>
-              <LabelList dataKey="requestsTotal" position="top" fill="#9CA3AF" fontSize={12} />
+            <Bar 
+              dataKey="requestsTotal" 
+              name="Requisições" 
+              fill={CHART_COLORS.requests} 
+              radius={[4, 4, 0, 0]}
+              minPointSize={10}
+            >
+              <LabelList 
+                dataKey="actualRequests" 
+                position="top" 
+                fill="#9CA3AF" 
+                fontSize={12}
+                formatter={(value: number) => value > 0 ? value : ''}
+              />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

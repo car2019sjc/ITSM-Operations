@@ -17,6 +17,7 @@ import { Request } from '../types/request';
 import { parseISO, format, differenceInDays, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { normalizeRequestPriority, normalizeRequestStatus } from '../types/request';
+import { REQUEST_SLA_THRESHOLDS } from '../constants';
 import { normalizeLocationName } from '../utils/locationUtils';
 
 interface InProgressRequestsModalProps {
@@ -24,12 +25,7 @@ interface InProgressRequestsModalProps {
   onClose: () => void;
 }
 
-// SLA thresholds for requests (in days)
-const REQUEST_SLA_THRESHOLDS = {
-  HIGH: 3,    // 3 days
-  MEDIUM: 5,  // 5 days
-  LOW: 7      // 7 days
-};
+
 
 const CHART_COLORS = {
   HIGH: '#EF4444',
