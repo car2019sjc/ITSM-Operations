@@ -27,6 +27,7 @@ import { IncidentDetails } from './IncidentDetails';
 import { normalizePriority, getIncidentState } from '../utils/incidentUtils';
 import { INCIDENT_SLA_THRESHOLDS } from '../constants';
 import { normalizeLocationName } from '../utils/locationUtils';
+import { resolveAnalyst } from '../utils/analystResolver';
 import { AnalystPerformanceChart } from './AnalystPerformanceChart';
 import { MonthlyIncidentsChart } from './MonthlyIncidentsChart';
 
@@ -351,9 +352,11 @@ export function AnalystAnalysis({ incidents, onClose, startDate, endDate }: Anal
         }
       }
 
-      if (incident.AssignmentGroup) {
-        data[analyst].groups.add(normalizeLocationName(incident.AssignmentGroup));
-      }
+      const normalizedGroup = incident.AssignmentGroup ? normalizeLocationName(incident.AssignmentGroup) : undefined;
+      const resolved = resolveAnalyst(analyst, normalizedGroup);
+      // Sempre considerar mapeamento manual (se existir); senão, usar do incidente
+      const finalGroup = resolved.mappedGroup ? normalizeLocationName(resolved.mappedGroup) : (normalizedGroup || 'Não especificado');
+      data[analyst].groups.add(finalGroup);
 
       const threshold = INCIDENT_SLA_THRESHOLDS[priority as keyof typeof INCIDENT_SLA_THRESHOLDS] || 60;
       try {

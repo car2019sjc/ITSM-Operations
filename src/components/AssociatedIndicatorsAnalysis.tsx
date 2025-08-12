@@ -3,6 +3,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { StringAnalysisModal } from './StringAnalysisModal';
+import { loadAnalystMapping } from '../utils/analystMappingStore';
+import { normalizeLocationName } from '../utils/locationUtils';
 
 // Função para parsear datas em diferentes formatos
 const parseDateFlexible = (dateStr: string) => {
@@ -129,6 +131,7 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
   const [showStringAnalysis, setShowStringAnalysis] = useState(false);
 
   const processedData = useMemo(() => {
+    const manual = loadAnalystMapping();
     const filteredData = data.filter(item => {
       const openedDate = parseDateFlexible(item.Opened);
       if (!openedDate) {
@@ -171,9 +174,11 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
 
     // Processamento por função associada
     const functionData = filteredData.reduce((acc, item) => {
-      const functionName = getField(item, [
+      const analyst = getField(item, ['AssignedTo', 'Atribuído para', 'Atribuido', 'Analyst', 'Analista']);
+      const mapped = manual.find(m => m.analyst.trim().toLowerCase() === String(analyst || '').trim().toLowerCase());
+      const functionName = (mapped?.level || getField(item, [
         'Função Associada', 'FuncaoAssociada', 'Funcao', 'Função', 'Nível', 'Nivel', 'NivelFuncao', 'NívelFunção', 'Nivel de Suporte', 'Nível de Suporte', 'SupportLevel', 'Support Level', 'Level', 'level', 'n1', 'n2', 'n3', 'N1', 'N2', 'N3'
-      ]);
+      ])).trim();
       if (!acc[functionName]) {
         acc[functionName] = 0;
       }
@@ -183,9 +188,11 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
 
     // Processamento por grupo de atribuição
     const groupData = filteredData.reduce((acc, item) => {
-      const group = getField(item, [
+      const analyst = getField(item, ['AssignedTo', 'Atribuído para', 'Atribuido', 'Analyst', 'Analista']);
+      const mapped = manual.find(m => m.analyst.trim().toLowerCase() === String(analyst || '').trim().toLowerCase());
+      const group = normalizeLocationName((mapped?.group || getField(item, [
         'AssignmentGroup', 'Assignment Group', 'Grupo de Atribuição', 'Grupo', 'Group', 'GrupoAtribuicao', 'Grupo_Associado', 'Equipe', 'Team'
-      ]);
+      ])).trim());
       if (!acc[group]) {
         acc[group] = 0;
       }
@@ -233,9 +240,12 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
   // Função para filtrar dados por função selecionada
   const filteredByFunction = selectedFunction
     ? data.filter(item => {
-        const functionName = getField(item, [
+        const manual = loadAnalystMapping();
+        const analyst = getField(item, ['AssignedTo', 'Atribuído para', 'Atribuido', 'Analyst', 'Analista']);
+        const mapped = manual.find(m => m.analyst.trim().toLowerCase() === String(analyst || '').trim().toLowerCase());
+        const functionName = (mapped?.level || getField(item, [
           'Função Associada', 'FuncaoAssociada', 'Funcao', 'Função', 'Nível', 'Nivel', 'NivelFuncao', 'NívelFunção', 'Nivel de Suporte', 'Nível de Suporte', 'SupportLevel', 'Support Level', 'Level', 'level', 'n1', 'n2', 'n3', 'N1', 'N2', 'N3'
-        ]);
+        ])).trim();
         return functionName === selectedFunction;
       })
     : [];
@@ -292,20 +302,27 @@ export function AssociatedIndicatorsAnalysis({ data, dateRange }: AssociatedIndi
     const matrix: Record<string, Record<string, number>> = {};
     const groupSet = new Set<string>();
     const functionSet = new Set<string>();
+    const manual = loadAnalystMapping();
     const filteredData = data.filter(item => {
       const openedDate = parseDateFlexible(item.Opened);
       if (!openedDate) return false;
-      const group = getField(item, [
+      let group = getField(item, [
         'AssignmentGroup', 'Assignment Group', 'Grupo de Atribuição', 'Grupo', 'Group', 'GrupoAtribuicao', 'Grupo_Associado', 'Equipe', 'Team'
       ]);
       const func = getField(item, [
         'Função Associada', 'FuncaoAssociada', 'Funcao', 'Função', 'Nível', 'Nivel', 'NivelFuncao', 'NívelFunção', 'Nivel de Suporte', 'Nível de Suporte', 'SupportLevel', 'Support Level', 'Level', 'level', 'n1', 'n2', 'n3', 'N1', 'N2', 'N3'
       ]);
-      groupSet.add(group);
-      functionSet.add(func);
-      if (!matrix[group]) matrix[group] = {};
-      if (!matrix[group][func]) matrix[group][func] = 0;
-      matrix[group][func]++;
+      // Aplicar mapeamento manual por analista (se existir)
+      const analyst = getField(item, ['AssignedTo', 'Atribuído para', 'Atribuido', 'Analyst', 'Analista']);
+      const match = manual.find(m => m.analyst.trim().toLowerCase() === String(analyst || '').trim().toLowerCase());
+      if (match?.group) group = normalizeLocationName(match.group);
+      const funcResolved = match?.level || func;
+      const groupResolved = normalizeLocationName(group);
+      groupSet.add(groupResolved);
+      functionSet.add(funcResolved);
+      if (!matrix[groupResolved]) matrix[groupResolved] = {};
+      if (!matrix[groupResolved][funcResolved]) matrix[groupResolved][funcResolved] = 0;
+      matrix[groupResolved][funcResolved]++;
       return true;
     });
     // Montar array para o gráfico

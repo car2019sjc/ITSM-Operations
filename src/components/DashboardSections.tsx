@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { AssociatedIndicatorsAnalysis } from './AssociatedIndicatorsAnalysis';
 import { WeekendIncidentsAnalysis } from './WeekendIncidentsAnalysis';
+import { SupportQueuesAnalysis } from './SupportQueuesAnalysis';
+import { N3MonthlyAnalysis } from './N3MonthlyAnalysis';
 
 // Adicione o tipo para os itens das seções
 interface DashboardSectionItem {
@@ -81,6 +83,7 @@ export function DashboardSections({
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [showAssociatedAnalysis, setShowAssociatedAnalysis] = useState(false);
   const [showWeekendAnalysis, setShowWeekendAnalysis] = useState(false);
+  const [showN3FromPredictive, setShowN3FromPredictive] = useState(false);
 
   const handleSectionClick = (section: string) => {
     if (section === 'weekend-incidents') {
@@ -159,6 +162,27 @@ export function DashboardSections({
           onClick: () => {
             handleAssociatedAnalysisClick();
           }
+        },
+        {
+          title: "Análise por Analista",
+          description: "Desempenho individual",
+          icon: UserCog,
+          sectionKey: "analyst",
+          onClick: () => handleSectionClick("analyst")
+        },
+        {
+          title: "Análise por Turno",
+          description: "Desempenho por período",
+          icon: Clock,
+          sectionKey: "shift",
+          onClick: () => handleSectionClick("shift")
+        },
+        {
+          title: "N3 por Turno",
+          description: "Chamados N3 no período",
+          icon: Clock,
+          sectionKey: "n3-shift",
+          onClick: () => setShowN3FromPredictive(true)
         }
       ]
     },
@@ -224,32 +248,18 @@ export function DashboardSections({
       ]
     },
     preditiva: {
-      title: "Análise Preditiva - IA",
+      title: "Análises e Tendências – IA",
       description: "Insights e previsões",
       icon: Brain,
       color: "bg-orange-600",
       hoverColor: "hover:bg-orange-700",
       items: [
         {
-          title: "Análise Preditiva",
-          description: "Previsões e tendências",
+          title: "Análise Geral por IA",
+          description: "",
           icon: Brain,
           sectionKey: "predictive",
           onClick: () => handleSectionClick("predictive")
-        },
-        {
-          title: "Análise por Analista",
-          description: "Desempenho individual",
-          icon: UserCog,
-          sectionKey: "analyst",
-          onClick: () => handleSectionClick("analyst")
-        },
-        {
-          title: "Análise por Turno",
-          description: "Desempenho por período",
-          icon: Clock,
-          sectionKey: "shift",
-          onClick: () => handleSectionClick("shift")
         }
       ]
     }
@@ -391,6 +401,14 @@ export function DashboardSections({
             />
           </div>
         </div>
+      )}
+
+      {showN3FromPredictive && (
+        <N3MonthlyAnalysis
+          incidents={data as any}
+          dateRange={dateRange}
+          onClose={() => setShowN3FromPredictive(false)}
+        />
       )}
     </div>
   );

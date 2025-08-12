@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { FileSpreadsheet, AlertCircle, Info, BarChart3, FileText, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { FileSpreadsheet, AlertCircle, Info, BarChart3, FileText, ArrowRight, Check, Loader2, UserCog } from 'lucide-react';
+import { AnalystMappingConfig } from './AnalystMappingConfig';
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import { Incident } from '../types/incident';
@@ -22,6 +23,7 @@ export function FileUploadSelector({ onSelectIncidents, onSelectRequests }: File
   const [requestsLoaded, setRequestsLoaded] = useState(false);
   const [incidentsData, setIncidentsData] = useState<Incident[]>([]);
   const [requestsData, setRequestsData] = useState<Request[]>([]);
+  const [showMappingConfig, setShowMappingConfig] = useState(false);
 
   const handleTypeSelect = (type: 'incidents' | 'requests') => {
     setSelectedType(type);
@@ -564,8 +566,20 @@ export function FileUploadSelector({ onSelectIncidents, onSelectRequests }: File
           <p className="text-blue-400">
             Os arquivos devem estar no formato Excel (.xlsx ou .xls)
           </p>
+          <div className="ml-auto">
+            <button
+              onClick={() => setShowMappingConfig(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm"
+            >
+              <UserCog className="h-4 w-4" /> Atualizar Tabela Grupo × Nível × Analista
+            </button>
         </div>
       </div>
+      </div>
+
+      {showMappingConfig && (
+        <AnalystMappingConfig onClose={() => setShowMappingConfig(false)} />
+      )}
     </div>
   );
 }

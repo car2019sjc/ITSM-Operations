@@ -19,6 +19,8 @@ import { IncidentDetails } from './IncidentDetails';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { normalizeLocationName } from '../utils/locationUtils';
+import { loadAnalystMapping } from '../utils/analystMappingStore';
+import { getShiftFromTime, getShiftName } from '../utils/shiftUtils';
 
 const CHART_COLORS = {
   P1: '#EF4444',
@@ -76,6 +78,10 @@ const QUEUE_GROUPS = {
       'Berrini-Net/Tel'
     ],
     categories: ['Network', 'Cloud', 'IT Security']
+  },
+  'N3 - Acionado': {
+    groups: [],
+    categories: ['Escalonado para N3']
   }
 };
 
@@ -84,6 +90,7 @@ const QUEUE_ICONS = {
   'Asset Management': Phone,
   'Ticket Management': TicketIcon,
   'N2 - Internet': Network
+  , 'N3 - Acionado': Network
 };
 
 const QUEUE_COLORS = {
@@ -110,6 +117,12 @@ const QUEUE_COLORS = {
     border: 'border-orange-500/50',
     text: 'text-orange-400',
     hover: 'hover:bg-orange-500/20'
+  },
+  'N3 - Acionado': {
+    bg: 'bg-pink-500/10',
+    border: 'border-pink-500/50',
+    text: 'text-pink-400',
+    hover: 'hover:bg-pink-500/20'
   }
 };
 
@@ -246,10 +259,93 @@ function IncidentModal({ incidents, queueName, onClose }: IncidentModalProps) {
   );
 }
 
+function N3Modal({ incidents, onClose }: { incidents: Incident[]; onClose: () => void }) {
+  const [selectedStatus, setSelectedStatus] = useState<'open'|'inProgress'|'onHold'>('open');
+  const shifts = ['MORNING','AFTERNOON','NIGHT'] as const;
+
+  const filterByStatus = (i: Incident): boolean => {
+    const state = i.State?.toLowerCase() || '';
+    if (state.includes('closed') || state.includes('resolved')) return false;
+    if (selectedStatus === 'inProgress') return state.includes('progress') || state.includes('assigned');
+    if (selectedStatus === 'onHold') return state.includes('hold') || state.includes('pending') || state.includes('aguardando');
+    // open
+    return !(state.includes('progress') || state.includes('assigned') || state.includes('hold') || state.includes('pending') || state.includes('aguardando'));
+  };
+
+  const byShift = shifts.map(shift => {
+    const filtered = incidents.filter(i => getShiftFromTime(i.Opened) === shift).filter(filterByStatus);
+    const counts: Record<string, number> = { P1:0,P2:0,P3:0,P4:0 };
+    filtered.forEach(i => { const p = normalizePriority(i.Priority); counts[p] = (counts[p]||0)+1; });
+    const total = filtered.length;
+    return { key: shift, name: getShiftName(shift as any), total, counts };
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[70]">
+      <div className="bg-[#151B2B] rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
+        <div className="p-6 border-b border-gray-700 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-white">N3 - Acionado por Turno e Prioridade</h2>
+          <button onClick={onClose} className="p-2 hover:bg-[#1C2333] rounded-lg transition-colors">
+            <X className="h-5 w-5 text-gray-400 hover:text-white" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4 overflow-auto max-h-[calc(90vh-120px)]">
+          <div className="flex gap-2 mb-2">
+            {STATUS_OPTIONS.map(option => {
+              const Icon = option.icon;
+              const isSelected = option.value === selectedStatus;
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => setSelectedStatus(option.value as any)}
+                  className={`
+                    flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all
+                    ${isSelected 
+                      ? `${option.styles.bg} ${option.styles.text} border ${option.styles.border}` 
+                      : `text-gray-400 hover:text-white ${option.styles.hover}`}
+                  `}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          {byShift.map(s => (
+            <div key={s.key} className="bg-[#1C2333] p-4 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white font-medium">{s.name}</h3>
+                <span className="text-gray-300">Total: {s.total}</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {(['P1','P2','P3','P4'] as const).map(p => (
+                  <div key={p} className="text-center p-3 rounded-lg bg-[#0F172A] border border-gray-700">
+                    <div className="text-sm text-gray-400">{p}</div>
+                    <div className="text-white text-lg font-semibold">{s.counts[p]}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SupportQueuesAnalysis({ incidents }: SupportQueuesAnalysisProps) {
   const [selectedStatus, setSelectedStatus] = useState('open');
   const [selectedQueueIncidents, setSelectedQueueIncidents] = useState<Incident[] | null>(null);
   const [selectedQueueName, setSelectedQueueName] = useState<string>('');
+  const manualMapping = useMemo(() => loadAnalystMapping(), []);
+  const [showN3Modal, setShowN3Modal] = useState(false);
+
+  const resolveGroup = (incident: Incident): string => {
+    const analyst = (incident.AssignedTo || '').trim().toLowerCase();
+    const match = manualMapping.find(m => (m.analyst || '').trim().toLowerCase() === analyst);
+    if (match?.group) return normalizeLocationName(match.group);
+    return normalizeLocationName(incident.AssignmentGroup || '');
+  };
 
   const queueStats = useMemo(() => {
     const stats = {} as Record<string, QueueStats>;
@@ -282,8 +378,8 @@ export function SupportQueuesAnalysis({ incidents }: SupportQueuesAnalysisProps)
         return;
       }
 
-      // Normalize the assignment group
-      const normalizedGroup = normalizeLocationName(incident.AssignmentGroup || '');
+      // Resolver grupo com base no mapeamento manual (se existir)
+      const normalizedGroup = resolveGroup(incident);
 
       // First check if incident belongs to Ticket Management
       if (normalizedGroup === 'BR-TM') {
@@ -377,8 +473,8 @@ export function SupportQueuesAnalysis({ incidents }: SupportQueuesAnalysisProps)
         return false;
       }
 
-      // Normalize the assignment group
-      const normalizedGroup = normalizeLocationName(incident.AssignmentGroup || '');
+      // Resolver grupo considerando mapeamento manual
+      const normalizedGroup = resolveGroup(incident);
 
       // For Ticket Management, check if assignment group includes the name
       if (queueName === 'Ticket Management') {
@@ -409,8 +505,7 @@ export function SupportQueuesAnalysis({ incidents }: SupportQueuesAnalysisProps)
                            selectedStatus === 'inProgress' ? stats.inProgress :
                            selectedStatus === 'onHold' ? stats.onHold : 0;
 
-        // Always show Ticket Management and Asset Management, even with no incidents
-        if (displayCount === 0 && queueName !== 'Ticket Management' && queueName !== 'Asset Management') return null;
+        // Exibir todos os cards (mesmo com zero)
 
         const statusOption = STATUS_OPTIONS.find(opt => opt.value === selectedStatus)!;
         const StatusIcon = statusOption.icon;
@@ -423,9 +518,13 @@ export function SupportQueuesAnalysis({ incidents }: SupportQueuesAnalysisProps)
               transition-all hover:scale-[1.02] cursor-pointer
             `}
             onClick={() => {
-              const incidents = getQueueIncidents(queueName);
-              setSelectedQueueIncidents(incidents);
-              setSelectedQueueName(queueName);
+              if (queueName === 'N3 - Acionado') {
+                setShowN3Modal(true);
+              } else {
+                const incidents = getQueueIncidents(queueName);
+                setSelectedQueueIncidents(incidents);
+                setSelectedQueueName(queueName);
+              }
             }}
           >
             <div className="flex items-center gap-4 mb-4">
@@ -501,6 +600,13 @@ export function SupportQueuesAnalysis({ incidents }: SupportQueuesAnalysisProps)
             setSelectedQueueIncidents(null);
             setSelectedQueueName('');
           }}
+        />
+      )}
+
+      {showN3Modal && (
+        <N3Modal
+          incidents={incidents.filter(i => /n3|nivel\s*3|level\s*3/i.test(i.FuncaoAssociada || i['Função Associada'] || ''))}
+          onClose={() => setShowN3Modal(false)}
         />
       )}
     </div>
